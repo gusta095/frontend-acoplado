@@ -1,0 +1,93 @@
+import { Box, Breadcrumbs, CircularProgress, Grid, Link, Typography } from '@mui/material';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useOffers } from '../../hooks/useOffers';
+import type { OfferCategory, ProviderId } from '../../types';
+import { EmptyState } from '../shared/EmptyState';
+import { CategoryFilter } from './CategoryFilter';
+import { OfferCard } from './OfferCard';
+import mockData from '../../mocks/offers.mock.json';
+
+const PROVIDER_NAMES: Record<string, string> = {
+  aws: 'Amazon Web Services',
+  azure: 'Microsoft Azure',
+  oci: 'Oracle Cloud Infrastructure',
+};
+
+export function OffersPage() {
+  const { providerId } = useParams<{ providerId: string }>();
+  const navigate = useNavigate();
+  const [selectedCategories, setSelectedCategories] = useState<OfferCategory[]>([]);
+
+  const { offers, loading } = useOffers(providerId as ProviderId);
+
+  const allCategories = [...new Set(
+    (mockData.offers as { providerId: string; category: string }[])
+      .filter(o => o.providerId === providerId)
+      .map(o => o.category as OfferCategory)
+  )];
+
+  const filtered = selectedCategories.length === 0
+    ? offers
+    : offers.filter(o => selectedCategories.includes(o.category));
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+        <CircularProgress sx={{ color: '#003087' }} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box p={4}>
+      <Breadcrumbs sx={{ mb: 3 }}>
+        <Link
+          underline="hover"
+          color="text.secondary"
+          sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
+          onClick={() => navigate('/cloud-marketplace')}
+        >
+          Cloud Marketplace
+        </Link>
+        <Typography variant="body2" color="text.primary" fontWeight={600}>
+          {PROVIDER_NAMES[providerId ?? ''] ?? providerId}
+        </Typography>
+      </Breadcrumbs>
+
+      <Box mb={3}>
+        <Typography variant="h5" fontWeight={800} color="text.primary" gutterBottom>
+          {PROVIDER_NAMES[providerId ?? ''] ?? providerId}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {offers.length} {offers.length === 1 ? 'oferta disponível' : 'ofertas disponíveis'}
+        </Typography>
+      </Box>
+
+      {allCategories.length > 0 && (
+        <Box mb={3}>
+          <CategoryFilter
+            categories={allCategories}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
+        </Box>
+      )}
+
+      {filtered.length === 0 ? (
+        <EmptyState title="Nenhuma oferta encontrada" description="Tente remover algum filtro de categoria." />
+      ) : (
+        <Grid container spacing={2.5}>
+          {filtered.map(offer => (
+            <Grid item xs={12} sm={6} md={4} key={offer.id}>
+              <OfferCard
+                offer={offer}
+                onClick={() => navigate(`/cloud-marketplace/${providerId}/${offer.id}`)}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </Box>
+  );
+}
