@@ -1,5 +1,5 @@
 import { Chip } from '@mui/material';
-import type { OfferCategory } from '../../types';
+import type { OfferCategory } from '../../../types';
 
 const CATEGORY_LABELS: Record<OfferCategory, string> = {
   compute: 'Compute',

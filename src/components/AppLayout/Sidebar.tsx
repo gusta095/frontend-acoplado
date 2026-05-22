@@ -1,10 +1,75 @@
-import { Box, ButtonBase, Divider, List, Typography } from '@mui/material';
-import { Cloud as CloudIcon, Storage as StorageIcon, History as HistoryIcon, BarChart as BarChartIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import { Box, ButtonBase, Collapse, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import {
+  Cloud as CloudIcon,
+  Storage as StorageIcon,
+  Dashboard as DashboardIcon,
+  BarChart as BarChartIcon,
+  Article as ArticleIcon,
+  PlayCircle as PlayCircleIcon,
+  Group as GroupIcon,
+  Hub as HubIcon,
+  Lock as LockIcon,
+  Layers as LayersIcon,
+  Visibility as VisibilityIcon,
+  Settings as SettingsIcon,
+  ExpandLess,
+  ExpandMore,
+} from '@mui/icons-material';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { SidebarUserInfo } from './SidebarUserInfo';
 
 const SIDEBAR_WIDTH = 240;
+
+interface SidebarGroupProps {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}
+
+function SidebarGroup({ label, icon, children, defaultOpen = true }: SidebarGroupProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <>
+      <ListItemButton
+        onClick={() => setOpen(prev => !prev)}
+        sx={{
+          borderRadius: 1.5,
+          mx: 1,
+          mt: 1,
+          px: 1.5,
+          py: 0.875,
+          backgroundColor: 'rgba(0,48,135,0.07)',
+          color: '#003087',
+          '&:hover': { backgroundColor: 'rgba(0,48,135,0.12)' },
+        }}
+      >
+        <ListItemIcon sx={{ minWidth: 32, color: '#003087' }}>
+          {icon}
+        </ListItemIcon>
+        <ListItemText
+          primary={label}
+          primaryTypographyProps={{
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: '#003087',
+          }}
+        />
+        {open
+          ? <ExpandLess sx={{ fontSize: 16, color: '#003087' }} />
+          : <ExpandMore sx={{ fontSize: 16, color: '#003087' }} />
+        }
+      </ListItemButton>
+
+      <Collapse in={open} timeout={180} unmountOnExit>
+        {children}
+      </Collapse>
+    </>
+  );
+}
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -23,6 +88,7 @@ export function Sidebar() {
         left: 0,
         bottom: 0,
         zIndex: 100,
+        overflowY: 'auto',
       }}
     >
       {/* Logo */}
@@ -33,6 +99,7 @@ export function Sidebar() {
           display: 'flex', alignItems: 'center', gap: 1,
           justifyContent: 'flex-start',
           borderRadius: 1,
+          flexShrink: 0,
           '&:hover': { backgroundColor: 'rgba(0,48,135,0.05)' },
         }}
       >
@@ -59,12 +126,26 @@ export function Sidebar() {
       <Divider sx={{ borderColor: '#E2E8F0' }} />
 
       {/* Nav */}
-      <List disablePadding sx={{ flex: 1, pt: 1 }}>
-        <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/cloud-marketplace" />
-        <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" disabled />
-        <SidebarItem icon={<HistoryIcon fontSize="small" />} label="Auditoria" disabled />
-        <SidebarItem icon={<BarChartIcon fontSize="small" />} label="Métricas" disabled />
-        <SidebarItem icon={<SettingsIcon fontSize="small" />} label="Configuração" disabled />
+      <List disablePadding sx={{ flex: 1, pb: 1 }}>
+
+        <SidebarGroup label="Infraestrutura" icon={<LayersIcon fontSize="small" />}>
+          <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/cloud-marketplace" />
+          <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" disabled />
+        </SidebarGroup>
+
+        <SidebarGroup label="Observabilidade" icon={<VisibilityIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarItem icon={<DashboardIcon fontSize="small" />} label="Dashboards" disabled />
+          <SidebarItem icon={<BarChartIcon fontSize="small" />} label="Métricas" disabled />
+          <SidebarItem icon={<ArticleIcon fontSize="small" />} label="Logs" disabled />
+          <SidebarItem icon={<PlayCircleIcon fontSize="small" />} label="Execuções" disabled />
+        </SidebarGroup>
+
+        <SidebarGroup label="Configurações" icon={<SettingsIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarItem icon={<GroupIcon fontSize="small" />} label="Cadastros" disabled />
+          <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" disabled />
+          <SidebarItem icon={<LockIcon fontSize="small" />} label="Permissões" disabled />
+        </SidebarGroup>
+
       </List>
 
       {/* User */}

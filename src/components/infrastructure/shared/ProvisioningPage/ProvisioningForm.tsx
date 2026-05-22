@@ -2,7 +2,7 @@ import {
   Box, Checkbox, FormControl, FormControlLabel, FormHelperText,
   InputLabel, MenuItem, OutlinedInput, Select, TextField, Typography
 } from '@mui/material';
-import type { OfferParameter } from '../../types';
+import type { OfferParameter } from '../../../../types';
 
 interface Props {
   parameters: OfferParameter[];

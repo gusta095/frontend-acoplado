@@ -1,18 +1,12 @@
 import { Box, Breadcrumbs, CircularProgress, Grid, Link, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useOffers } from '../../hooks/useOffers';
-import type { OfferCategory, ProviderId } from '../../types';
-import { EmptyState } from '../shared/EmptyState';
+import { useOffers } from '../../../../hooks/useOffers';
+import type { OfferCategory, ProviderId } from '../../../../types';
+import { PROVIDER_NAMES } from '../../../../constants/providers';
+import { EmptyState } from '../EmptyState';
 import { CategoryFilter } from './CategoryFilter';
 import { OfferCard } from './OfferCard';
-import mockData from '../../mocks/offers.mock.json';
-
-const PROVIDER_NAMES: Record<string, string> = {
-  aws: 'Amazon Web Services',
-  azure: 'Microsoft Azure',
-  oci: 'Oracle Cloud Infrastructure',
-};
 
 export function OffersPage() {
   const { providerId } = useParams<{ providerId: string }>();
@@ -21,11 +15,7 @@ export function OffersPage() {
 
   const { offers, loading } = useOffers(providerId as ProviderId);
 
-  const allCategories = [...new Set(
-    (mockData.offers as { providerId: string; category: string }[])
-      .filter(o => o.providerId === providerId)
-      .map(o => o.category as OfferCategory)
-  )];
+  const allCategories = [...new Set(offers.map(o => o.category))];
 
   const filtered = selectedCategories.length === 0
     ? offers

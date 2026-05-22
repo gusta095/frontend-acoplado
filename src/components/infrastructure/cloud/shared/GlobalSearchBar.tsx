@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Autocomplete, Box, CircularProgress, InputAdornment, TextField, Typography } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
-import type { Offer } from '../../types';
-import { MockMarketplaceClient } from '../../api/MockMarketplaceClient';
-import { ProviderBadge } from './ProviderBadge';
+import type { Offer } from '../../../../types';
+import { MockMarketplaceClient } from '../../../../api/MockMarketplaceClient';
+import { ProviderBadge } from '../../shared/ProviderBadge';
 
 const client = new MockMarketplaceClient();
 

@@ -1,7 +1,7 @@
 import { Box, Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
 import { Cloud as CloudIcon } from '@mui/icons-material';
 import { ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
-import type { Provider } from '../../types';
+import type { Provider } from '../../../../types';
 
 interface Props {
   provider: Provider;

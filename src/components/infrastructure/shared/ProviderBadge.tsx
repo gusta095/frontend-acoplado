@@ -1,5 +1,5 @@
 import { Chip } from '@mui/material';
-import type { ProviderId } from '../../types';
+import type { ProviderId } from '../../../types';
 
 const PROVIDER_META: Record<ProviderId, { label: string; color: string }> = {
   aws: { label: 'AWS', color: '#FF9900' },

@@ -1,8 +1,8 @@
 import { Box, Card, CardActionArea, CardContent, Typography } from '@mui/material';
 import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
-import type { Offer } from '../../types';
-import { CategoryChip } from '../shared/CategoryChip';
-import { ProviderBadge } from '../shared/ProviderBadge';
+import type { Offer } from '../../../../types';
+import { CategoryChip } from '../CategoryChip';
+import { ProviderBadge } from '../ProviderBadge';
 
 interface Props {
   offer: Offer;

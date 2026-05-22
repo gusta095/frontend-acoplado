@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
-import type { OfferCategory } from '../../types';
-import { CategoryChip } from '../shared/CategoryChip';
+import type { OfferCategory } from '../../../../types';
+import { CategoryChip } from '../CategoryChip';
 
 interface Props {
   categories: OfferCategory[];

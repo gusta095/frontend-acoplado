@@ -1,6 +1,6 @@
 import { Box, Divider, Paper, Tooltip, Typography } from '@mui/material';
 import { InfoOutlined as InfoOutlinedIcon } from '@mui/icons-material';
-import type { OfferParameter } from '../../types';
+import type { OfferParameter } from '../../../../types';
 
 const TYPE_LABELS: Record<string, string> = {
   string: 'texto',

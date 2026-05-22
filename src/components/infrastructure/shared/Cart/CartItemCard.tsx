@@ -1,7 +1,7 @@
 import { Box, Chip, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { DeleteOutline as DeleteOutlineIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon } from '@mui/icons-material';
-import type { CartItem, ProvisioningResponse } from '../../types';
-import { ProviderBadge } from '../shared/ProviderBadge';
+import type { CartItem, ProvisioningResponse } from '../../../../types';
+import { ProviderBadge } from '../ProviderBadge';
 
 interface Props {
   item: CartItem;

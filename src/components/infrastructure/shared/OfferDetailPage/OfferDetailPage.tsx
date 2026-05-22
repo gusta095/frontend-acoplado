@@ -2,16 +2,11 @@ import { Box, Breadcrumbs, Button, CircularProgress, Divider, Link, Paper, Typog
 import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useOfferDetail } from '../../hooks/useOfferDetail';
-import { CategoryChip } from '../shared/CategoryChip';
-import { ProviderBadge } from '../shared/ProviderBadge';
+import { useOfferDetail } from '../../../../hooks/useOfferDetail';
+import { PROVIDER_NAMES } from '../../../../constants/providers';
+import { CategoryChip } from '../CategoryChip';
+import { ProviderBadge } from '../ProviderBadge';
 import { ParameterList } from './ParameterList';
-
-const PROVIDER_NAMES: Record<string, string> = {
-  aws: 'Amazon Web Services',
-  azure: 'Microsoft Azure',
-  oci: 'Oracle Cloud Infrastructure',
-};
 
 export function OfferDetailPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();

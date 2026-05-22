@@ -2,15 +2,10 @@ import { Box, Breadcrumbs, Button, CircularProgress, Divider, Link, Paper, Snack
 import { AddShoppingCart as AddShoppingCartIcon } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
-import { useOfferDetail } from '../../hooks/useOfferDetail';
+import { useCart } from '../../../../context/CartContext';
+import { useOfferDetail } from '../../../../hooks/useOfferDetail';
+import { PROVIDER_NAMES } from '../../../../constants/providers';
 import { ProvisioningForm } from './ProvisioningForm';
-
-const PROVIDER_NAMES: Record<string, string> = {
-  aws: 'Amazon Web Services',
-  azure: 'Microsoft Azure',
-  oci: 'Oracle Cloud Infrastructure',
-};
 
 function validate(
   parameters: { key: string; required: boolean; type: string; validation?: { pattern?: string; minLength?: number; maxLength?: number; min?: number; max?: number } }[],

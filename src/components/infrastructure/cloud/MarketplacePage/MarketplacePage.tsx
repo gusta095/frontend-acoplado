@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Grid, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useProviders } from '../../hooks/useProviders';
-import mockData from '../../mocks/offers.mock.json';
+import { useProviders } from '../../../../hooks/useProviders';
+import mockData from '../../../../mocks/offers.mock.json';
 import { ProviderCard } from './ProviderCard';
 
 export function MarketplacePage() {

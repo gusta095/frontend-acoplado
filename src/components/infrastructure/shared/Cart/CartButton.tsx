@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge, IconButton, Tooltip } from '@mui/material';
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
-import { useCart } from '../../context/CartContext';
+import { useCart } from '../../../../context/CartContext';
 import { CartDrawer } from './CartDrawer';
 
 export function CartButton() {

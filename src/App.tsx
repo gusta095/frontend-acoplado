@@ -4,10 +4,10 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { theme } from './theme';
 import { CartProvider } from './context/CartContext';
 import { AppLayout } from './components/AppLayout/AppLayout';
-import { MarketplacePage } from './components/MarketplacePage/MarketplacePage';
-import { OffersPage } from './components/OffersPage/OffersPage';
-import { OfferDetailPage } from './components/OfferDetailPage/OfferDetailPage';
-import { ProvisioningPage } from './components/ProvisioningPage/ProvisioningPage';
+import { MarketplacePage } from './components/infrastructure/cloud/MarketplacePage/MarketplacePage';
+import { OffersPage } from './components/infrastructure/shared/OffersPage/OffersPage';
+import { OfferDetailPage } from './components/infrastructure/shared/OfferDetailPage/OfferDetailPage';
+import { ProvisioningPage } from './components/infrastructure/shared/ProvisioningPage/ProvisioningPage';
 
 export default function App() {
   return (

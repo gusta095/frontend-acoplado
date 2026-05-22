@@ -1,6 +1,6 @@
 import { AppBar, Box, Toolbar } from '@mui/material';
-import { GlobalSearchBar } from '../shared/GlobalSearchBar';
-import { CartButton } from '../Cart/CartButton';
+import { GlobalSearchBar } from '../infrastructure/cloud/shared/GlobalSearchBar';
+import { CartButton } from '../infrastructure/shared/Cart/CartButton';
 import { SIDEBAR_WIDTH } from './Sidebar';
 
 export function TopBar() {
