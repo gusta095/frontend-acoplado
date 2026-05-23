@@ -1,19 +1,20 @@
 # Cloud Marketplace
 
-Aplicação web interna para descoberta e provisionamento self-service de recursos cloud (AWS, Azure, OCI). Funciona como uma loja: o engenheiro navega pelas ofertas, configura parâmetros, adiciona ao carrinho e confirma o provisionamento.
+Aplicação web interna para descoberta e provisionamento self-service de recursos cloud (AWS, Azure, OCI). O engenheiro navega pelas ofertas, configura parâmetros, adiciona ao carrinho e confirma o provisionamento.
 
-> Desenvolvido em React 18 + TypeScript + Vite + MUI v5. Pode rodar standalone ou ser integrado ao Backstage como plugin de frontend.
+> React 18 + TypeScript + Vite 5 + MUI v5. Roda standalone ou embutido no Backstage via iframe.
 
 ---
 
-## Rodando standalone (desenvolvimento)
+## Rodando standalone
 
 ```bash
 npm install
 npm run dev
+# Acesse http://localhost:5173
 ```
 
-Acesse `http://localhost:5173`. Os dados são servidos pelo mock em `src/mocks/offers.mock.json`.
+Os dados são servidos pelo mock em `src/mocks/offers.mock.json`.
 
 ```bash
 npm run build   # build de produção
@@ -22,245 +23,198 @@ npm run preview # preview do build
 
 ---
 
-## Integrando ao Backstage
+## Integração com o Backstage (abordagem iframe)
 
-A integração transforma o app em um plugin Backstage nativo. Os contratos de API (`MarketplaceApi`) e todos os tipos TypeScript já estão preparados para isso.
-
-### Pré-requisitos
-
-- Backstage >= 1.20
-- Node 18+
-- Monorepo Backstage criado com `npx @backstage/create-app`
+A integração atual **não** converte o app em plugin nativo — ele continua rodando como servidor Vite independente (`:5173`) e é embutido dentro do Backstage via `<iframe>`. Isso mantém o frontend totalmente desacoplado do monorepo do Backstage.
 
 ---
 
-### Passo 1 — Criar o plugin no monorepo
+### Estrutura no monorepo
 
-Dentro do monorepo Backstage, gere a estrutura do plugin:
-
-```bash
-yarn backstage-cli new --select plugin
-# Nome: cloud-marketplace
-```
-
-Isso cria `plugins/cloud-marketplace/` com a estrutura padrão.
-
----
-
-### Passo 2 — Copiar os arquivos do frontend
-
-Copie as pastas do app standalone para dentro de `plugins/cloud-marketplace/src/`:
+O app foi copiado para dentro do workspace Yarn do Backstage:
 
 ```
-src/
-├── types/
-├── api/
-├── hooks/
-├── context/
-├── mocks/
-├── components/
-└── theme.ts
+gusta-lab/
+└── packages/
+    └── cloud-marketplace/   ← este app
+└── packages/app/
+    └── src/modules/cloudMarketplace/
+        ├── CloudMarketplacePage.tsx  ← componente Backstage com o <iframe>
+        └── index.ts                  ← plugin Backstage que registra a página
 ```
 
 ---
 
-### Passo 3 — Substituir as dependências de roteamento
+### Passo 1 — Copiar o app para o workspace
 
-O Backstage usa seu próprio sistema de rotas. Substitua o React Router pelo sistema nativo.
+Copie o conteúdo deste repo para `gusta-lab/packages/cloud-marketplace/`. O `package.json` deve ter o nome de workspace:
 
-**3.1 — Definir as rotas em `src/routes.ts`:**
-
-```typescript
-import { createRouteRef, createSubRouteRef } from '@backstage/core-plugin-api';
-
-export const rootRouteRef = createRouteRef({ id: 'cloud-marketplace' });
-
-export const providerRouteRef = createSubRouteRef({
-  id: 'cloud-marketplace:provider',
-  parent: rootRouteRef,
-  path: '/:providerId',
-});
-
-export const offerDetailRouteRef = createSubRouteRef({
-  id: 'cloud-marketplace:offer-detail',
-  parent: rootRouteRef,
-  path: '/:providerId/:offerId',
-});
-
-export const provisionRouteRef = createSubRouteRef({
-  id: 'cloud-marketplace:provision',
-  parent: rootRouteRef,
-  path: '/:providerId/:offerId/provision',
-});
+```json
+{ "name": "@internal/cloud-marketplace" }
 ```
 
-**3.2 — Registrar o plugin em `src/plugin.ts`:**
-
-```typescript
-import { createPlugin, createRoutableExtension } from '@backstage/core-plugin-api';
-import { rootRouteRef, providerRouteRef, offerDetailRouteRef, provisionRouteRef } from './routes';
-
-export const cloudMarketplacePlugin = createPlugin({
-  id: 'cloud-marketplace',
-  routes: { root: rootRouteRef },
-});
-
-export const CloudMarketplacePage = cloudMarketplacePlugin.provide(
-  createRoutableExtension({
-    name: 'CloudMarketplacePage',
-    component: () => import('./components/AppLayout/AppLayout').then(m => m.AppLayout),
-    mountPoint: rootRouteRef,
-  }),
-);
-```
-
-**3.3 — Substituir `useNavigate` e `useParams`:**
-
-Nos componentes que usam React Router, troque pelas APIs do Backstage:
-
-```typescript
-// Antes (React Router)
-import { useNavigate, useParams } from 'react-router-dom';
-
-// Depois (Backstage)
-import { useRouteRef } from '@backstage/core-plugin-api';
-import { providerRouteRef, offerDetailRouteRef } from '../../routes';
-
-const toProvider = useRouteRef(providerRouteRef);
-// Navegar: navigate(toProvider({ providerId: 'aws' }))
-```
+O `gusta-lab/package.json` já inclui `"packages/*"` nos workspaces, então o app é reconhecido automaticamente.
 
 ---
 
-### Passo 4 — Adaptar o ThemeProvider
+### Passo 2 — Versão do Vite
 
-O Backstage já fornece um ThemeProvider global. Remova o `<ThemeProvider>` do `App.tsx` e aplique as customizações de cor via `createUnifiedTheme` do Backstage:
+> **Atenção:** use obrigatoriamente **Vite 5**. O Vite 8 usa o novo bundler Rolldown que cria chunks compartilhados com ordem de inicialização errada para MUI + Emotion, causando `ReferenceError: init_emotion_react_browser_development_esm is not defined` e tela branca.
 
-```typescript
-// packages/app/src/theme.ts
-import { createUnifiedTheme } from '@backstage/theme';
+`package.json` do cloud-marketplace:
 
-export const marketplaceTheme = createUnifiedTheme({
-  palette: {
-    primary: { main: '#003087' },
-    secondary: { main: '#0050B3' },
-  },
-});
-```
-
----
-
-### Passo 5 — Registrar no app Backstage
-
-**`packages/app/src/App.tsx`:**
-
-```tsx
-import { CloudMarketplacePage } from '@internal/plugin-cloud-marketplace';
-
-// Dentro de <FlatRoutes>:
-<Route path="/cloud-marketplace" element={<CloudMarketplacePage />} />
-```
-
-**`packages/app/src/components/Root/Root.tsx`** (sidebar do Backstage):
-
-```tsx
-import CloudIcon from '@mui/icons-material/Cloud';
-import { SidebarItem } from '@backstage/core-components';
-
-<SidebarItem icon={CloudIcon} to="cloud-marketplace" text="Cloud Marketplace" />
-```
-
----
-
-### Passo 6 — Conectar ao backend real
-
-Quando o backend de provisionamento estiver disponível, substitua o `MockMarketplaceClient` pela implementação HTTP:
-
-```typescript
-// src/api/MarketplaceClient.ts
-import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
-import type { MarketplaceApi } from './MarketplaceApi';
-
-export class MarketplaceClient implements MarketplaceApi {
-  constructor(private readonly discoveryApi: DiscoveryApi, private readonly fetchApi: FetchApi) {}
-
-  private async getBaseUrl() {
-    return this.discoveryApi.getBaseUrl('cloud-marketplace');
-  }
-
-  async getProviders() {
-    const base = await this.getBaseUrl();
-    const res = await this.fetchApi.fetch(`${base}/providers`);
-    return res.json();
-  }
-
-  async getOffers(providerId, filters) {
-    const base = await this.getBaseUrl();
-    const params = new URLSearchParams({ providerId, ...filters });
-    const res = await this.fetchApi.fetch(`${base}/offers?${params}`);
-    return res.json();
-  }
-
-  async getOfferById(offerId) {
-    const base = await this.getBaseUrl();
-    const res = await this.fetchApi.fetch(`${base}/offers/${offerId}`);
-    return res.json();
-  }
-
-  async provision(request) {
-    const base = await this.getBaseUrl();
-    const res = await this.fetchApi.fetch(`${base}/provision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    return res.json();
-  }
+```json
+"devDependencies": {
+  "vite": "^5.4.0",
+  "@vitejs/plugin-react": "^4.3.4"
 }
 ```
 
-Registre o cliente via `createApiFactory` no `plugin.ts`:
+---
 
-```typescript
-import { createApiFactory, discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
-import { marketplaceApiRef } from './api/MarketplaceApi';
-import { MarketplaceClient } from './api/MarketplaceClient';
+### Passo 3 — Configurar o vite.config.ts
 
-export const cloudMarketplacePlugin = createPlugin({
-  id: 'cloud-marketplace',
-  apis: [
-    createApiFactory({
-      api: marketplaceApiRef,
-      deps: { discoveryApi: discoveryApiRef, fetchApi: fetchApiRef },
-      factory: ({ discoveryApi, fetchApi }) => new MarketplaceClient(discoveryApi, fetchApi),
-    }),
-  ],
-  routes: { root: rootRouteRef },
+```ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: '0.0.0.0',  // necessário para WSL2: garante acesso do browser Windows
+    port: 5173,
+  },
+})
+```
+
+> **Por que `host: '0.0.0.0'`?** No WSL2 os servidores em `127.0.0.1` ficam presos no loopback interno do Linux e podem não ser acessíveis do browser Windows. Usando `0.0.0.0` o servidor escuta em todas as interfaces.
+
+> **Não usar `optimizeDeps.exclude: ['@mui/icons-material']`** — esse exclude faz o Vite servir o barrel do MUI Icons sem pré-bundle, gerando ~2.650 requisições HTTP individuais no browser e travando o carregamento.
+
+---
+
+### Passo 4 — Criar o componente iframe no Backstage
+
+`gusta-lab/packages/app/src/modules/cloudMarketplace/CloudMarketplacePage.tsx`:
+
+```tsx
+export function CloudMarketplacePage() {
+  return (
+    <iframe
+      src="http://localhost:5173/cloud-marketplace"
+      title="Cloud Marketplace"
+      style={{
+        width: '100%',
+        height: '100vh',
+        border: 'none',
+        display: 'block',
+      }}
+    />
+  );
+}
+```
+
+---
+
+### Passo 5 — Criar o plugin Backstage
+
+`gusta-lab/packages/app/src/modules/cloudMarketplace/index.ts`:
+
+```ts
+import CloudIcon from '@material-ui/icons/Cloud';
+import { createElement } from 'react';
+import { createFrontendPlugin, PageBlueprint } from '@backstage/frontend-plugin-api';
+
+const cloudMarketplacePage = PageBlueprint.make({
+  name: 'cloud-marketplace',
+  params: {
+    path: '/cloud-marketplace',
+    title: 'Cloud Marketplace',
+    icon: createElement(CloudIcon),
+    noHeader: true,
+    loader: async () => {
+      const { CloudMarketplacePage } = await import('./CloudMarketplacePage');
+      return createElement(CloudMarketplacePage);
+    },
+  },
+});
+
+export const cloudMarketplacePlugin = createFrontendPlugin({
+  pluginId: 'cloud-marketplace',   // ← campo é "pluginId", não "id" (API Backstage >= 1.49)
+  extensions: [cloudMarketplacePage],
 });
 ```
 
 ---
 
-## Contratos de API REST esperados pelo backend
+### Passo 6 — Registrar no App.tsx do Backstage
 
-| Método | Path | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/cloud-marketplace/providers` | Lista todos os providers |
-| `GET` | `/api/cloud-marketplace/offers?providerId={id}` | Lista ofertas de um provider |
-| `GET` | `/api/cloud-marketplace/offers/{offerId}` | Detalhe de uma oferta |
-| `POST` | `/api/cloud-marketplace/provision` | Submete provisionamento |
+`gusta-lab/packages/app/src/App.tsx`:
 
-Consulte o `SDD.md` para os schemas completos de request/response.
+```ts
+import { cloudMarketplacePlugin } from './modules/cloudMarketplace';
+
+export default createApp({
+  features: [..., cloudMarketplacePlugin],
+});
+```
+
+---
+
+### Passo 7 — Liberar o iframe no CSP
+
+`gusta-lab/app-config.yaml`:
+
+```yaml
+backend:
+  csp:
+    frame-src: ["'self'", 'http://localhost:5173']
+```
+
+Sem essa entrada o Backstage bloqueia o carregamento do iframe por Content Security Policy.
+
+---
+
+### Passo 8 — Instalar dependências e subir
+
+```bash
+# Na raiz do monorepo Backstage
+cd gusta-lab
+yarn install
+yarn start
+```
+
+O script `start` usa `concurrently` para subir os dois servidores simultaneamente:
+- Backstage frontend em `:3000` e backend em `:7007`
+- Cloud Marketplace Vite em `:5173`
+
+> **Não use `yarn dev`** — ele sobe apenas o Backstage, sem o servidor Vite do Cloud Marketplace.
+
+---
+
+### Verificando se está tudo certo
+
+| Checklist | Como verificar |
+|-----------|---------------|
+| Vite em `0.0.0.0:5173` | `ss -tlnp \| grep 5173` → deve mostrar `0.0.0.0:5173` |
+| App standalone funcionando | Abrir `http://localhost:5173` no browser Windows |
+| App no Backstage | Abrir `http://localhost:3000/cloud-marketplace` |
 
 ---
 
 ## Stack
 
-| Tecnologia | Versão | Uso |
-|-----------|--------|-----|
-| React | 18 | UI |
-| TypeScript | 5 | Tipagem |
-| Vite | 8 | Build/dev server |
-| Material UI | 5 | Componentes e tema |
-| React Router | 6 | Roteamento (standalone) |
+| Tecnologia | Versão | Observação |
+|-----------|--------|------------|
+| React | 18 | |
+| TypeScript | 5 | |
+| **Vite** | **5** | **Não usar v8 — bug com MUI/Emotion/Rolldown** |
+| Material UI | 5 | |
+| React Router | 6 | Usado apenas no app standalone |
 | IBM Plex Sans | — | Tipografia |
+
+---
+
+## Integração nativa (futuro)
+
+A abordagem iframe é intencional para manter o frontend desacoplado. Quando houver necessidade de integração mais profunda (autenticação compartilhada, acesso às APIs do Backstage, tema unificado), consulte o `SDD.md` para o plano de migração para plugin nativo com `MarketplaceClient` HTTP substituindo o `MockMarketplaceClient`.
