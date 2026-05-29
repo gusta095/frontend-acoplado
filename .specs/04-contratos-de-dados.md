@@ -80,6 +80,21 @@ export interface CartItem {
   addedAt: string;               // ISO 8601
 }
 
+// ─── Histórico de Implantações ────────────────────────────────────────────────
+// Definido em context/DeploymentHistoryContext.tsx (não em types/index.ts)
+
+export interface DeploymentResult {
+  itemId: string;                 // Corresponde a CartItem.id
+  response: ProvisioningResponse;
+}
+
+export interface DeploymentBatch {
+  batchId: string;                // UUID gerado no frontend (crypto.randomUUID)
+  timestamp: string;              // ISO 8601 — momento do confirm no CartDrawer
+  snapshot: CartItem[];           // Cópia dos itens no momento do confirm
+  results: DeploymentResult[];    // Resultado de cada item no lote
+}
+
 // ─── Provisionamento ──────────────────────────────────────────────────────────
 
 export interface ProvisioningRequest {

@@ -59,16 +59,9 @@ O `gusta-lab/package.json` já inclui `"packages/*"` nos workspaces, então o ap
 
 ### Passo 2 — Versão do Vite
 
-> **Atenção:** use obrigatoriamente **Vite 5**. O Vite 8 usa o novo bundler Rolldown que cria chunks compartilhados com ordem de inicialização errada para MUI + Emotion, causando `ReferenceError: init_emotion_react_browser_development_esm is not defined` e tela branca.
+O projeto usa **Vite 8** (com Rolldown). O erro `ReferenceError: init_emotion_react_browser_development_esm is not defined` descrito anteriormente ocorre quando o Rolldown divide o bundle em múltiplos chunks com ordem de inicialização errada para MUI/Emotion. **No build atual isso não acontece** porque o output é um único bundle (558 KB).
 
-`package.json` do cloud-marketplace:
-
-```json
-"devDependencies": {
-  "vite": "^5.4.0",
-  "@vitejs/plugin-react": "^4.3.4"
-}
-```
+> **Atenção:** não habilite `build.rolldownOptions.output.codeSplitting` nem `build.rollupOptions.output.manualChunks` sem validar que o app continua funcionando no Backstage. Essas opções reintroduzem o risco de chunk ordering com MUI/Emotion.
 
 ---
 

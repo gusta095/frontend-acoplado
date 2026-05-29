@@ -6,7 +6,7 @@
 
 ```
 src/
-├── App.tsx                        # Raiz: ThemeProvider + CartProvider + BrowserRouter + Routes
+├── App.tsx                        # Raiz: ThemeProvider + CartProvider + DeploymentHistoryProvider + BrowserRouter + Routes
 ├── main.tsx                       # Entry point React 18
 ├── theme.ts                       # MUI theme customizado (paleta B3, tipografia IBM Plex Sans)
 │
@@ -27,7 +27,8 @@ src/
 │   └── providers.ts               # PROVIDER_NAMES — mapa de ProviderId para nome completo
 │
 ├── context/
-│   └── CartContext.tsx            # CartProvider + useCart hook
+│   ├── CartContext.tsx            # CartProvider + useCart hook
+│   └── DeploymentHistoryContext.tsx  # DeploymentHistoryProvider + useDeploymentHistory hook; persiste em localStorage
 │
 ├── mocks/
 │   └── offers.mock.json           # 8 ofertas (Azure ×3, AWS ×3, OCI ×2)
@@ -40,11 +41,19 @@ src/
     │   ├── SidebarUserInfo.tsx    # Bloco inferior: avatar + nome + role
     │   └── TopBar.tsx             # AppBar fixo com GlobalSearchBar e CartButton
     │
+    ├── HomePage/
+    │   └── HomePage.tsx           # Página inicial: hero, cards de módulos e tiles de stats
+    │
+    ├── observability/
+    │   └── deployments/
+    │       ├── DeploymentsListPage.tsx  # Histórico de todos os lotes (/deployments)
+    │       └── DeploymentPage.tsx       # Detalhe de um lote (/deployments/:batchId)
+    │
     └── infrastructure/
         ├── shared/                # Motor genérico — reutilizado por cloud e on-premise
         │   ├── Cart/
         │   │   ├── CartButton.tsx        # IconButton com Badge no TopBar; abre CartDrawer
-        │   │   ├── CartDrawer.tsx        # Drawer: lista pedidos, confirma em sequência
+        │   │   ├── CartDrawer.tsx        # Drawer: lista pedidos, confirma em sequência, salva lote e navega para /deployments/:batchId
         │   │   ├── CartItemCard.tsx      # Card de item com parâmetros, badge e resultado
         │   │   └── CartEmptyState.tsx    # Estado vazio do carrinho
         │   │
@@ -85,17 +94,17 @@ Todas as páginas são envolvidas por `<AppLayout>`, que define três áreas fix
 ```
 <AppLayout>
   ├── <Sidebar> (240px, fixo, borda direita, scroll vertical)
-  │     ├── <ButtonBase> Logo clicável → /cloud-marketplace
+  │     ├── <ButtonBase> Logo clicável → /
   │     │
   │     ├── <SidebarGroup icon={LayersIcon}     label="Infraestrutura"> ← aberto por padrão
   │     │     ├── <SidebarItem label="Cloud"       />  → /cloud-marketplace ✅
   │     │     └── <SidebarItem label="On-Premise"  />  tooltip "Em breve"
   │     │
   │     ├── <SidebarGroup icon={VisibilityIcon} label="Observabilidade"> ← fechado por padrão
-  │     │     ├── <SidebarItem label="Dashboards"  />  tooltip "Em breve"
-  │     │     ├── <SidebarItem label="Métricas"    />  tooltip "Em breve"
-  │     │     ├── <SidebarItem label="Logs"        />  tooltip "Em breve"
-  │     │     └── <SidebarItem label="Execuções"   />  tooltip "Em breve"
+  │     │     ├── <SidebarItem label="Implantações" />  → /deployments ✅
+  │     │     ├── <SidebarItem label="Dashboards"   />  tooltip "Em breve"
+  │     │     ├── <SidebarItem label="Métricas"     />  tooltip "Em breve"
+  │     │     └── <SidebarItem label="Logs"         />  tooltip "Em breve"
   │     │
   │     ├── <SidebarGroup icon={SettingsIcon}   label="Configurações">  ← fechado por padrão
   │     │     ├── <SidebarItem label="Cadastros"   />  tooltip "Em breve"
@@ -127,17 +136,37 @@ Todas as páginas são envolvidas por `<AppLayout>`, que define três áreas fix
 ```tsx
 // App.tsx — React Router v6
 <Routes>
-  <Route path="/"                                               element={<Navigate to="/cloud-marketplace" replace />} />
+  <Route path="/"                                               element={<HomePage />} />
   <Route path="/cloud-marketplace"                             element={<MarketplacePage />} />
   <Route path="/cloud-marketplace/:providerId"                 element={<OffersPage />} />
   <Route path="/cloud-marketplace/:providerId/:offerId"        element={<OfferDetailPage />} />
   <Route path="/cloud-marketplace/:providerId/:offerId/provision" element={<ProvisioningPage />} />
+  <Route path="/deployments"                                   element={<DeploymentsListPage />} />
+  <Route path="/deployments/:batchId"                          element={<DeploymentPage />} />
 </Routes>
 ```
 
 ---
 
 ## Árvore de Componentes por Página
+
+### Home (`/`)
+
+```
+<HomePage>
+  ├── Hero (gradiente azul B3 com saudação personalizada)
+  ├── <Grid> Módulos
+  │     ├── Card "Cloud Marketplace" → /cloud-marketplace (ativo)
+  │     ├── Card "Implantações"      → /deployments (ativo)
+  │     └── Card "Configurações"     → (em breve, desabilitado)
+  └── <Grid> Acesso rápido (tiles de stats)
+        ├── Providers disponíveis (3)
+        ├── Ofertas no catálogo (8)
+        ├── Pedidos no carrinho (dinâmico — via useCart)
+        └── Provisionamentos realizados (estático "0" na v0.1)
+```
+
+---
 
 ### Marketplace Home (`/cloud-marketplace`)
 
@@ -221,9 +250,41 @@ As chamadas reais de provisionamento acontecem aqui via `provisionAll` do `usePr
 
 ---
 
+### Histórico de Implantações (`/deployments`)
+
+```
+<DeploymentsListPage>
+  ├── [batches.length === 0] → EmptyState com botão "Ir para o Marketplace"
+  └── [batches.length > 0]
+        └── <Paper clickável /> × N
+              ├── Ícone de status (sucesso/falha)
+              ├── "Lote #N" + Chip de status + data/hora + contagem
+              └── Chips das ofertas do lote
+```
+
+---
+
+### Detalhe de Implantação (`/deployments/:batchId`)
+
+```
+<DeploymentPage>
+  ├── Botão "← Histórico de implantações"
+  ├── Título "Lote #N" + Chip de resumo (X de Y confirmados)
+  ├── <Paper> Metadados: ID do lote, data/hora, total de pedidos
+  ├── <Paper colorido /> × N  (verde = accepted, vermelho = failed)
+  │     ├── Nome da oferta + <ProviderBadge /> + Chip status
+  │     ├── Chips de parâmetros (label: valor)
+  │     └── Request ID, mensagem e timestamp da resposta
+  └── Botões: "Novo provisionamento" (→ /cloud-marketplace) e "Ver histórico" (→ /deployments)
+```
+
+---
+
 ## Gerenciamento de Estado
 
-- **Estado global:** apenas `CartContext` — compartilhado entre `CartButton` (contador), `CartDrawer` (lista) e `ProvisioningPage` (adicionar item)
+- **Estado global:** `CartContext` (carrinho) e `DeploymentHistoryContext` (histórico de lotes)
+  - `CartContext` — compartilhado entre `CartButton` (contador), `CartDrawer` (lista) e `ProvisioningPage` (adicionar item)
+  - `DeploymentHistoryContext` — persistido em `localStorage` (`cloud-marketplace:deployment-history`); expõe `batches`, `addBatch` e `getBatch`; consumido por `CartDrawer` (escrita), `DeploymentsListPage` e `DeploymentPage` (leitura)
 - **Estado local por página:** `useState` e `useReducer` — sem Redux
 - **Estado do formulário:** gerenciado em `ProvisioningPage` e passado como props para `ProvisioningForm`
 - **Dados remotos:** hooks customizados (`useProviders`, `useOffers`, `useOfferDetail`, `useProvisioning`), cada um com sua própria instância de `MockMarketplaceClient`
@@ -231,3 +292,4 @@ As chamadas reais de provisionamento acontecem aqui via `provisionAll` do `usePr
 ## Limitações conhecidas da v0.1
 
 - **`CartDrawer` limpa o carrinho apenas no sucesso total:** ao fechar o drawer após provisionamento, `clearCart()` só é chamado se **todos** os itens retornaram `status: 'accepted'`. Itens com falha permanecem no carrinho para nova tentativa.
+- **"Provisionamentos realizados" na HomePage é estático:** exibe sempre "0" — não lê `DeploymentHistoryContext`. Para ser dinâmico, basta contar `batches.flatMap(b => b.results).filter(r => r.response.status === 'accepted').length`.

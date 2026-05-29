@@ -19,11 +19,16 @@
 | US-06 | Parâmetros obrigatórios exibem asterisco (*) | Teste de snapshot / RTL |
 | US-07 | Botão "Confirmar" permanece desabilitado até campos obrigatórios preenchidos | Teste de interação |
 | US-07 | Validação de `pattern` e `minLength/maxLength` exibe mensagem de erro inline | Teste de interação |
-| US-08 | Tela de review lista todos os parâmetros preenchidos e o nome da oferta | Teste de renderização |
-| US-08 | Botão "Voltar" retorna ao formulário mantendo os valores preenchidos | Teste de interação |
+| US-08 | ~~Descartada~~ — revisão absorvida pelo CartDrawer | — |
 | US-09 | Estado de loading exibe `<Progress>` durante a chamada ao `provision()` | Teste com mock de API + fake timer |
 | US-09 | Resposta de sucesso exibe banner com `requestId` | Teste de integração |
 | US-09 | Resposta de erro exibe mensagem com motivo | Teste de integração |
+| US-13 | `/deployments` exibe todos os lotes em ordem cronológica inversa com número, data, contagem e chips de ofertas | Teste de renderização |
+| US-13 | Estado vazio exibe mensagem e botão "Ir para o Marketplace" | Teste de renderização |
+| US-14 | `/deployments/:batchId` exibe ID, data, total de pedidos e detalhe por item (status, requestId, mensagem) | Teste de renderização |
+| US-14 | ID de lote inválido exibe estado de "não encontrado" com botão "Ver histórico" | Teste de renderização |
+| US-15 | Lotes persistem em `localStorage` sob a chave `cloud-marketplace:deployment-history` | Teste unitário do contexto |
+| US-15 | Dados são recarregados do `localStorage` ao montar `DeploymentHistoryProvider` | Teste unitário do contexto |
 
 ---
 

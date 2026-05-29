@@ -25,6 +25,7 @@ A metáfora central é a de um **e-commerce**: providers são categorias/lojas, 
 | O2 | Padronizar e abstrair a experiência de provisionamento entre providers | Fluxo de checkout idêntico independente do provider |
 | O3 | Entregar UI funcional como aplicação standalone, preparada para futura integração ao Backstage | App roda sem erros em `npm run dev`; contratos de API compatíveis com Backstage |
 | O4 | Dar visibilidade sobre o que está disponível antes de provisionar | Página de detalhe com todas as informações relevantes da oferta |
+| O5 | Dar rastreabilidade sobre o que foi provisionado | Histórico de lotes persistido em `localStorage`; página de detalhe por lote acessível via `/deployments/:batchId` |
 
 ---
 
@@ -33,7 +34,6 @@ A metáfora central é a de um **e-commerce**: providers são categorias/lojas, 
 - Implementação do backend de provisionamento (tratado como stub/mock)
 - Autenticação e autorização granular por time/namespace
 - Billing e estimativa de custo em tempo real
-- Histórico de provisionamentos (catálogo de instâncias)
 - Providers além de Azure, AWS e OCI
 
 ---
@@ -46,6 +46,7 @@ A metáfora central é a de um **e-commerce**: providers são categorias/lojas, 
 - **Dados:** Consumidos de `src/mocks/offers.mock.json` via `MockMarketplaceClient` — sem chamadas HTTP reais na v0.1
 - **Rota base:** `/cloud-marketplace`
 - **Estado do carrinho:** `CartContext` (React Context) em memória — sem persistência na v0.1
+- **Estado de implantações:** `DeploymentHistoryContext` (React Context) persistido em `localStorage` com a chave `cloud-marketplace:deployment-history`
 - **Estado local:** `useState` / `useReducer` por página — sem Redux
 
 ---

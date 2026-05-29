@@ -93,8 +93,8 @@ Para revisar os dados antes de submeter.
 
 Decisão: removida da v0.1. O fluxo de revisão foi absorvido pelo CartDrawer —
 o usuário revisa todos os pedidos com seus parâmetros antes de confirmar o
-provisionamento em lote. O componente ProvisioningResult.tsx foi criado para
-este fluxo mas está órfão — não é usado em nenhuma rota ou componente ativo.
+provisionamento em lote. Após a confirmação, o CartDrawer salva o lote no
+DeploymentHistoryContext e navega para /deployments/:batchId.
 ```
 
 ```
@@ -104,6 +104,42 @@ Quero receber feedback visual após submeter,
 Para saber se o provisionamento foi aceito ou falhou.
 
 Critério: Estado de loading durante a chamada. Toast/banner de sucesso com mensagem de confirmação, ou mensagem de erro com causa. Ambos acessíveis via screen reader (aria-live).
+```
+
+---
+
+## Épico 5 — Histórico de Implantações
+
+```
+US-13
+Como engenheiro,
+Quero ver uma lista de todos os lotes de provisionamento que já confirmei,
+Para ter rastreabilidade do que foi solicitado e quando.
+
+Critério: Página /deployments exibe todos os lotes em ordem cronológica inversa,
+com número do lote, data/hora, quantidade de pedidos, contagem de sucesso/falha
+e chips com os nomes das ofertas do lote.
+```
+
+```
+US-14
+Como engenheiro,
+Quero clicar em um lote e ver o detalhe de cada pedido,
+Para saber o status individual, o request ID e a mensagem retornada.
+
+Critério: Página /deployments/:batchId exibe o ID do lote, data/hora, total de
+pedidos e, para cada item: nome da oferta, badge do provider, parâmetros
+preenchidos, status (Confirmado/Falhou), requestId e mensagem.
+```
+
+```
+US-15
+Como engenheiro,
+Quero que o histórico persista entre sessões do navegador,
+Para não perder o rastreamento ao fechar e reabrir o app.
+
+Critério: Os dados de DeploymentHistoryContext são salvos em localStorage
+com a chave cloud-marketplace:deployment-history e recarregados ao inicializar.
 ```
 
 ---
@@ -153,7 +189,12 @@ Critério: Botão de remoção por item. Carrinho vazio exibe EmptyState.
 
         │
         ▼
-[Home do Marketplace] ← menu "Cloud" na sidebar
+[HomePage /] ← logo na sidebar ou acesso direto
+ ├── Cards de módulos: Cloud Marketplace, Implantações, Configurações
+ └── Tiles de acesso rápido (stats: providers, ofertas, carrinho)
+        │
+        ▼
+[Home do Marketplace] ← módulo "Cloud Marketplace" ou menu "Cloud" na sidebar
         │
         ▼
   Seleciona Provider (ex: AWS)
@@ -199,5 +240,21 @@ Critério: Botão de remoção por item. Carrinho vazio exibe EmptyState.
    ┌────┴────┐
    ▼         ▼
 Sucesso    Erro
- (Toast)  (Banner por item)
+           (item permanece no carrinho para retry)
+        │
+        ▼
+  [Salva lote no DeploymentHistoryContext]
+        │
+        ▼
+  Navega para /deployments/:batchId
+        │
+        ▼
+  [DeploymentPage — detalhe do lote]
+   ├── ID do lote, data/hora, total de pedidos
+   ├── Por item: status, requestId, mensagem, parâmetros
+   └── Botões: "Novo provisionamento" e "Ver histórico"
+        │
+        ▼
+  [DeploymentsListPage /deployments] ← menu "Implantações" na sidebar
+   └── Lista de todos os lotes com status e chips de ofertas
 ```
