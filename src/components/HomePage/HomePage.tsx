@@ -1,8 +1,8 @@
 import { Box, Button, Chip, Grid, Paper, Typography } from '@mui/material';
 import {
   Cloud as CloudIcon,
-  Visibility as VisibilityIcon,
   Settings as SettingsIcon,
+  RocketLaunch as RocketLaunchIcon,
   ArrowForward as ArrowForwardIcon,
   Inventory2Outlined as InventoryIcon,
   StorefrontOutlined as StorefrontIcon,
@@ -23,11 +23,11 @@ const modules = [
     active: true,
   },
   {
-    icon: <VisibilityIcon sx={{ fontSize: 36 }} />,
-    title: 'Observabilidade',
-    description: 'Dashboards, métricas e logs centralizados.',
-    to: null,
-    active: false,
+    icon: <RocketLaunchIcon sx={{ fontSize: 36 }} />,
+    title: 'Implantações',
+    description: 'Histórico de provisionamentos e detalhes por lote.',
+    to: '/deployments',
+    active: true,
   },
   {
     icon: <SettingsIcon sx={{ fontSize: 36 }} />,

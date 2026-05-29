@@ -1,7 +1,9 @@
 import { Box, Button, CircularProgress, Divider, Drawer, IconButton, LinearProgress, Typography } from '@mui/material';
 import { Close as CloseIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
+import { useDeploymentHistory } from '../../../../context/DeploymentHistoryContext';
 import { useProvisioning } from '../../../../hooks/useProvisioning';
 import type { CartItem, ProvisioningResponse } from '../../../../types';
 import { CartEmptyState } from './CartEmptyState';
@@ -15,14 +17,20 @@ interface Props {
 type Step = 'idle' | 'loading' | 'done';
 
 export function CartDrawer({ open, onClose }: Props) {
+  const navigate = useNavigate();
   const { items, removeItem } = useCart();
+  const { addBatch } = useDeploymentHistory();
   const { provisionAll } = useProvisioning();
   const [step, setStep] = useState<Step>('idle');
   const [results, setResults] = useState<Map<string, ProvisioningResponse>>(new Map());
   const [snapshot, setSnapshot] = useState<CartItem[]>([]);
+  const [currentBatchId, setCurrentBatchId] = useState('');
 
   const handleConfirm = async () => {
     const currentItems = [...items];
+    const batchId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    setCurrentBatchId(batchId);
     setSnapshot(currentItems);
     setStep('loading');
 
@@ -42,21 +50,47 @@ export function CartDrawer({ open, onClose }: Props) {
       if (responses[i].status === 'accepted') removeItem(item.id);
     });
 
+    addBatch({
+      batchId,
+      timestamp,
+      snapshot: currentItems,
+      results: currentItems.map((item, i) => ({ itemId: item.id, response: responses[i] })),
+    });
+
     setStep('done');
+  };
+
+  const handleEdit = (item: CartItem) => {
+    removeItem(item.id);
+    onClose();
+    const editValues: Record<string, string> = {};
+    for (const [k, v] of Object.entries(item.parameters)) {
+      editValues[k] = String(v);
+    }
+    navigate(`/cloud-marketplace/${item.offer.providerId}/${item.offer.id}/provision`, {
+      state: { editValues },
+    });
   };
 
   const handleRetry = () => {
     setStep('idle');
     setResults(new Map());
     setSnapshot([]);
+    setCurrentBatchId('');
   };
 
   const handleClose = () => {
     if (step !== 'loading') {
+      const targetBatchId = currentBatchId;
+      const wasDone = step === 'done';
       setStep('idle');
       setResults(new Map());
       setSnapshot([]);
+      setCurrentBatchId('');
       onClose();
+      if (wasDone && targetBatchId) {
+        navigate(`/deployments/${targetBatchId}`);
+      }
     }
   };
 
@@ -98,6 +132,7 @@ export function CartDrawer({ open, onClose }: Props) {
               key={item.id}
               item={item}
               onRemove={removeItem}
+              onEdit={handleEdit}
               removable={step === 'idle'}
               result={results.get(item.id)}
             />
@@ -110,12 +145,7 @@ export function CartDrawer({ open, onClose }: Props) {
         <>
           <Divider />
           <Box p={2}>
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              onClick={handleConfirm}
-            >
+            <Button variant="contained" fullWidth size="large" onClick={handleConfirm}>
               Confirmar {items.length} {items.length === 1 ? 'pedido' : 'pedidos'}
             </Button>
           </Box>
@@ -165,7 +195,7 @@ export function CartDrawer({ open, onClose }: Props) {
                 </Button>
               )}
               <Button variant={failureCount > 0 ? 'text' : 'outlined'} fullWidth onClick={handleClose}>
-                Fechar
+                Ver detalhes
               </Button>
             </Box>
           </Box>

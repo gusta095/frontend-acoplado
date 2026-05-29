@@ -5,7 +5,7 @@ import {
   Dashboard as DashboardIcon,
   BarChart as BarChartIcon,
   Article as ArticleIcon,
-  PlayCircle as PlayCircleIcon,
+  RocketLaunch as RocketLaunchIcon,
   Group as GroupIcon,
   Hub as HubIcon,
   Lock as LockIcon,
@@ -134,10 +134,10 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup label="Observabilidade" icon={<VisibilityIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarItem icon={<RocketLaunchIcon fontSize="small" />} label="Implantações" to="/deployments" />
           <SidebarItem icon={<DashboardIcon fontSize="small" />} label="Dashboards" disabled />
           <SidebarItem icon={<BarChartIcon fontSize="small" />} label="Métricas" disabled />
           <SidebarItem icon={<ArticleIcon fontSize="small" />} label="Logs" disabled />
-          <SidebarItem icon={<PlayCircleIcon fontSize="small" />} label="Execuções" disabled />
         </SidebarGroup>
 
         <SidebarGroup label="Configurações" icon={<SettingsIcon fontSize="small" />} defaultOpen={false}>

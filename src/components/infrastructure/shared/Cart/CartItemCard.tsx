@@ -1,16 +1,17 @@
-import { Box, Chip, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
-import { DeleteOutline as DeleteOutlineIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon } from '@mui/icons-material';
+import { Box, Button, Chip, Divider, Paper, Typography } from '@mui/material';
+import { CheckCircle as CheckCircleIcon, Error as ErrorIcon } from '@mui/icons-material';
 import type { CartItem, ProvisioningResponse } from '../../../../types';
 import { ProviderBadge } from '../ProviderBadge';
 
 interface Props {
   item: CartItem;
   onRemove: (id: string) => void;
+  onEdit?: (item: CartItem) => void;
   removable?: boolean;
   result?: ProvisioningResponse;
 }
 
-export function CartItemCard({ item, onRemove, removable = true, result }: Props) {
+export function CartItemCard({ item, onRemove, onEdit, removable = true, result }: Props) {
   const labelMap = Object.fromEntries(item.offer.parameters.map(p => [p.key, p.label]));
 
   return (
@@ -53,18 +54,10 @@ export function CartItemCard({ item, onRemove, removable = true, result }: Props
           </Box>
         </Box>
 
-        {removable && !result && (
-          <Tooltip title="Remover">
-            <IconButton size="small" onClick={() => onRemove(item.id)} sx={{ color: '#A0AEC0', '&:hover': { color: '#E53E3E' } }}>
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-
         {result && (
           result.status === 'accepted'
-            ? <CheckCircleIcon sx={{ color: '#48BB78', fontSize: 20 }} />
-            : <ErrorIcon sx={{ color: '#FC8181', fontSize: 20 }} />
+            ? <CheckCircleIcon sx={{ color: '#48BB78', fontSize: 20, flexShrink: 0 }} />
+            : <ErrorIcon sx={{ color: '#FC8181', fontSize: 20, flexShrink: 0 }} />
         )}
       </Box>
 
@@ -77,6 +70,40 @@ export function CartItemCard({ item, onRemove, removable = true, result }: Props
           {result.requestId && (
             <Typography variant="caption" color="text.disabled" display="block">ID: {result.requestId}</Typography>
           )}
+        </>
+      )}
+
+      {removable && !result && (
+        <>
+          <Divider sx={{ mt: 1.5, mb: 1, borderColor: '#F0F4F8' }} />
+          <Box display="flex" gap={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onEdit?.(item)}
+              sx={{
+                fontSize: '0.75rem',
+                py: 0.25,
+                borderColor: '#E2E8F0',
+                color: 'text.secondary',
+                '&:hover': { borderColor: '#003087', color: '#003087' },
+              }}
+            >
+              Editar
+            </Button>
+            <Button
+              size="small"
+              onClick={() => onRemove(item.id)}
+              sx={{
+                fontSize: '0.75rem',
+                py: 0.25,
+                color: '#A0AEC0',
+                '&:hover': { color: '#E53E3E', backgroundColor: '#FFF5F5' },
+              }}
+            >
+              Excluir
+            </Button>
+          </Box>
         </>
       )}
     </Paper>

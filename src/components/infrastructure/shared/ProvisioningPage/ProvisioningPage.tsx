@@ -1,7 +1,7 @@
 import { Box, Breadcrumbs, Button, CircularProgress, Divider, Link, Paper, Snackbar, Alert, Typography } from '@mui/material';
 import { AddShoppingCart as AddShoppingCartIcon } from '@mui/icons-material';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
 import { useOfferDetail } from '../../../../hooks/useOfferDetail';
 import { PROVIDER_NAMES } from '../../../../constants/providers';
@@ -41,9 +41,10 @@ function validate(
 export function ProvisioningPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();
   const navigate = useNavigate();
+  const { state } = useLocation() as { state: { editValues?: Record<string, string> } | null };
   const { addItem } = useCart();
   const { offer, loading } = useOfferDetail(offerId ?? '');
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(state?.editValues ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
