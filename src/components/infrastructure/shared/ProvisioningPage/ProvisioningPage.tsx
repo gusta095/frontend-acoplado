@@ -46,6 +46,7 @@ export function ProvisioningPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   if (loading) {
     return (
@@ -68,11 +69,31 @@ export function ProvisioningPage() {
   const handleChange = (key: string, value: string) => {
     const next = { ...values, [key]: value };
     setValues(next);
-    if (errors[key]) {
-      const nextErrors = { ...errors };
-      delete nextErrors[key];
-      setErrors(nextErrors);
+    if (touched[key]) {
+      const effective = { ...next };
+      for (const param of offer.parameters) {
+        effective[param.key] = effective[param.key] ?? param.defaultValue ?? '';
+      }
+      const errs = validate(offer.parameters, effective);
+      setErrors(prev => {
+        const updated = { ...prev };
+        if (errs[key]) updated[key] = errs[key];
+        else delete updated[key];
+        return updated;
+      });
     }
+  };
+
+  const handleBlur = (key: string) => {
+    setTouched(prev => ({ ...prev, [key]: true }));
+    const effective = getEffectiveValues();
+    const errs = validate(offer.parameters, effective);
+    setErrors(prev => {
+      const updated = { ...prev };
+      if (errs[key]) updated[key] = errs[key];
+      else delete updated[key];
+      return updated;
+    });
   };
 
   const isValid = () => {
@@ -96,8 +117,10 @@ export function ProvisioningPage() {
       else params[param.key] = val;
     }
     addItem(offer, params);
+    setValues({});
+    setTouched({});
+    setErrors({});
     setToast(true);
-    setTimeout(() => navigate(`/cloud-marketplace/${providerId}/${offerId}`), 1200);
   };
 
   return (
@@ -133,6 +156,7 @@ export function ProvisioningPage() {
           values={getEffectiveValues()}
           errors={errors}
           onChange={handleChange}
+          onBlur={handleBlur}
         />
       </Paper>
 

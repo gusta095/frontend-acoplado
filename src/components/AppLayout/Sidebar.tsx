@@ -93,7 +93,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <ButtonBase
-        onClick={() => navigate('/cloud-marketplace')}
+        onClick={() => navigate('/')}
         sx={{
           px: 2.5, py: 2.5,
           display: 'flex', alignItems: 'center', gap: 1,

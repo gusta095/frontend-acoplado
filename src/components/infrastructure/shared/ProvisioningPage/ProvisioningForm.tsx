@@ -9,9 +9,10 @@ interface Props {
   values: Record<string, string>;
   errors: Record<string, string>;
   onChange: (key: string, value: string) => void;
+  onBlur?: (key: string) => void;
 }
 
-export function ProvisioningForm({ parameters, values, errors, onChange }: Props) {
+export function ProvisioningForm({ parameters, values, errors, onChange, onBlur }: Props) {
   return (
     <Box display="flex" flexDirection="column" gap={2.5}>
       {parameters.map(param => {
@@ -26,6 +27,7 @@ export function ProvisioningForm({ parameters, values, errors, onChange }: Props
                   <Checkbox
                     checked={value === 'true'}
                     onChange={e => onChange(param.key, String(e.target.checked))}
+                    onBlur={() => onBlur?.(param.key)}
                     sx={{ color: '#003087', '&.Mui-checked': { color: '#003087' } }}
                   />
                 }
@@ -55,6 +57,7 @@ export function ProvisioningForm({ parameters, values, errors, onChange }: Props
               <Select
                 value={value}
                 onChange={e => onChange(param.key, e.target.value as string)}
+                onBlur={() => onBlur?.(param.key)}
                 input={<OutlinedInput label={`${param.label}${param.required ? ' *' : ''}`} />}
               >
                 {param.options?.map(opt => (
@@ -78,6 +81,7 @@ export function ProvisioningForm({ parameters, values, errors, onChange }: Props
             type={param.type === 'number' ? 'number' : 'text'}
             value={value}
             onChange={e => onChange(param.key, e.target.value)}
+            onBlur={() => onBlur?.(param.key)}
             placeholder={param.placeholder}
             helperText={error || param.description}
             error={!!error}

@@ -6,10 +6,13 @@ import { ProviderBadge } from '../ProviderBadge';
 interface Props {
   item: CartItem;
   onRemove: (id: string) => void;
+  removable?: boolean;
   result?: ProvisioningResponse;
 }
 
-export function CartItemCard({ item, onRemove, result }: Props) {
+export function CartItemCard({ item, onRemove, removable = true, result }: Props) {
+  const labelMap = Object.fromEntries(item.offer.parameters.map(p => [p.key, p.label]));
+
   return (
     <Paper
       variant="outlined"
@@ -38,7 +41,7 @@ export function CartItemCard({ item, onRemove, result }: Props) {
             {Object.entries(item.parameters).slice(0, 4).map(([key, val]) => (
               <Chip
                 key={key}
-                label={`${key}: ${val}`}
+                label={`${labelMap[key] ?? key}: ${val}`}
                 size="small"
                 sx={{ fontSize: '0.65rem', height: 20, backgroundColor: '#EDF2F7', color: '#4A5568' }}
               />
@@ -50,7 +53,7 @@ export function CartItemCard({ item, onRemove, result }: Props) {
           </Box>
         </Box>
 
-        {!result && (
+        {removable && !result && (
           <Tooltip title="Remover">
             <IconButton size="small" onClick={() => onRemove(item.id)} sx={{ color: '#A0AEC0', '&:hover': { color: '#E53E3E' } }}>
               <DeleteOutlineIcon fontSize="small" />
