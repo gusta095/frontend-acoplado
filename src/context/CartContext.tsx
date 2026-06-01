@@ -3,6 +3,7 @@ import type { CartItem, Offer } from '../types';
 
 interface CartContextValue {
   items: CartItem[];
+  activeProvider: string | null;
   addItem: (offer: Offer, parameters: Record<string, string | number | boolean>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
@@ -29,8 +30,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => setItems([]), []);
 
+  const activeProvider = items.length > 0 ? items[0].offer.providerId : null;
+
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart }}>
+    <CartContext.Provider value={{ items, activeProvider, addItem, removeItem, clearCart }}>
       {children}
     </CartContext.Provider>
   );

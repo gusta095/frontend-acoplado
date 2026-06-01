@@ -1,6 +1,6 @@
-import { Box, Breadcrumbs, Button, CircularProgress, Divider, Link, Paper, Snackbar, Alert, Typography } from '@mui/material';
-import { AddShoppingCart as AddShoppingCartIcon } from '@mui/icons-material';
-import { useState } from 'react';
+import { Box, Breadcrumbs, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Link, Paper, Typography } from '@mui/material';
+import { AddShoppingCart as AddShoppingCartIcon, Warning as WarningIcon } from '@mui/icons-material';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
 import { useOfferDetail } from '../../../../hooks/useOfferDetail';
@@ -41,13 +41,22 @@ function validate(
 export function ProvisioningPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();
   const navigate = useNavigate();
-  const { state } = useLocation() as { state: { editValues?: Record<string, string> } | null };
-  const { addItem } = useCart();
+  const location = useLocation();
+  const { state } = location as { state: { editValues?: Record<string, string> } | null };
+  const { addItem, activeProvider, clearCart, items } = useCart();
   const { offer, loading } = useOfferDetail(offerId ?? '');
   const [values, setValues] = useState<Record<string, string>>(state?.editValues ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [toast, setToast] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (state?.editValues) {
+      setValues(state.editValues);
+      setTouched({});
+      setErrors({});
+    }
+  }, [location.key]);
 
   if (loading) {
     return (
@@ -103,13 +112,8 @@ export function ProvisioningPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = () => {
+  const buildParams = () => {
     const effective = getEffectiveValues();
-    const errs = validate(offer.parameters, effective);
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
     const params: Record<string, string | number | boolean> = {};
     for (const param of offer.parameters) {
       const val = effective[param.key];
@@ -117,11 +121,32 @@ export function ProvisioningPage() {
       else if (param.type === 'boolean') params[param.key] = val === 'true';
       else params[param.key] = val;
     }
+    return params;
+  };
+
+  const commitAdd = (params: Record<string, string | number | boolean>) => {
     addItem(offer, params);
-    setValues({});
-    setTouched({});
-    setErrors({});
-    setToast(true);
+    navigate(`/cloud-marketplace/${providerId}`);
+  };
+
+  const handleSubmit = () => {
+    const effective = getEffectiveValues();
+    const errs = validate(offer.parameters, effective);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    const params = buildParams();
+    if (activeProvider && activeProvider !== offer.providerId) {
+      setConflictDialogOpen(true);
+      return;
+    }
+    commitAdd(params);
+  };
+
+  const handleConflictConfirm = () => {
+    clearCart();
+    setConflictDialogOpen(false);
   };
 
   return (
@@ -177,12 +202,38 @@ export function ProvisioningPage() {
         </Button>
       </Box>
 
-      <Snackbar open={toast} autoHideDuration={2000} onClose={() => setToast(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity="success" variant="filled" sx={{ backgroundColor: '#003087' }}>
-          "{offer.name}" adicionado ao carrinho!
-        </Alert>
-      </Snackbar>
+      <Dialog open={conflictDialogOpen} onClose={() => setConflictDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon sx={{ color: '#D97706' }} />
+          Provedor diferente no carrinho
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Seu carrinho já contém {items.length} {items.length === 1 ? 'item' : 'itens'} do provedor{' '}
+            <Typography component="span" fontWeight={700} color="text.primary">
+              {PROVIDER_NAMES[activeProvider ?? ''] ?? activeProvider}
+            </Typography>
+            . Não é permitido misturar provedores em um mesmo pedido.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={1.5}>
+            Deseja limpar o carrinho para continuar com{' '}
+            <Typography component="span" fontWeight={700} color="text.primary">
+              {PROVIDER_NAMES[offer.providerId] ?? offer.providerId}
+            </Typography>
+            ?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setConflictDialogOpen(false)}
+            sx={{ borderColor: '#E2E8F0', color: 'text.secondary' }}>
+            Cancelar
+          </Button>
+          <Button variant="contained" color="warning" onClick={handleConflictConfirm}>
+            Limpar carrinho
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
