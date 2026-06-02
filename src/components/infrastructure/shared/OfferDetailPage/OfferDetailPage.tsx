@@ -3,6 +3,7 @@ import { AccessTime as AccessTimeIcon } from '@mui/icons-material';
 import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOfferDetail } from '../../../../hooks/useOfferDetail';
+import { useMarketplaceClient } from '../../../../context/MarketplaceClientContext';
 import { PROVIDER_NAMES } from '../../../../constants/providers';
 import { CategoryChip } from '../CategoryChip';
 import { ProviderBadge } from '../ProviderBadge';
@@ -11,6 +12,7 @@ import { ParameterList } from './ParameterList';
 export function OfferDetailPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();
   const navigate = useNavigate();
+  const { basePath, marketplaceName } = useMarketplaceClient();
   const { offer, loading } = useOfferDetail(offerId ?? '');
 
   if (loading) {
@@ -27,11 +29,11 @@ export function OfferDetailPage() {
     <Box p={4} maxWidth={860}>
       <Breadcrumbs sx={{ mb: 3 }}>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate('/cloud-marketplace')}>
-          Cloud Marketplace
+          onClick={() => navigate(basePath)}>
+          {marketplaceName}
         </Link>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate(`/cloud-marketplace/${providerId}`)}>
+          onClick={() => navigate(`${basePath}/${providerId}`)}>
           {PROVIDER_NAMES[providerId ?? ''] ?? providerId}
         </Link>
         <Typography variant="body2" color="text.primary" fontWeight={600}>{offer.name}</Typography>
@@ -56,7 +58,7 @@ export function OfferDetailPage() {
           <Button
             variant="contained"
             size="large"
-            onClick={() => navigate(`/cloud-marketplace/${providerId}/${offerId}/provision`)}
+            onClick={() => navigate(`${basePath}/${providerId}/${offerId}/provision`)}
             sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             Configurar e Adicionar

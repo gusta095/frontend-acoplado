@@ -2,6 +2,7 @@ import { Box, Breadcrumbs, CircularProgress, Grid, Link, Typography } from '@mui
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOffers } from '../../../../hooks/useOffers';
+import { useMarketplaceClient } from '../../../../context/MarketplaceClientContext';
 import type { OfferCategory, ProviderId } from '../../../../types';
 import { PROVIDER_NAMES } from '../../../../constants/providers';
 import { EmptyState } from '../EmptyState';
@@ -11,6 +12,7 @@ import { OfferCard } from './OfferCard';
 export function OffersPage() {
   const { providerId } = useParams<{ providerId: string }>();
   const navigate = useNavigate();
+  const { basePath, marketplaceName } = useMarketplaceClient();
   const [selectedCategories, setSelectedCategories] = useState<OfferCategory[]>([]);
 
   const { offers, loading } = useOffers(providerId as ProviderId);
@@ -36,9 +38,9 @@ export function OffersPage() {
           underline="hover"
           color="text.secondary"
           sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate('/cloud-marketplace')}
+          onClick={() => navigate(basePath)}
         >
-          Cloud Marketplace
+          {marketplaceName}
         </Link>
         <Typography variant="body2" color="text.primary" fontWeight={600}>
           {PROVIDER_NAMES[providerId ?? ''] ?? providerId}
@@ -72,7 +74,7 @@ export function OffersPage() {
             <Grid item xs={12} sm={6} md={4} key={offer.id}>
               <OfferCard
                 offer={offer}
-                onClick={() => navigate(`/cloud-marketplace/${providerId}/${offer.id}`)}
+                onClick={() => navigate(`${basePath}/${providerId}/${offer.id}`)}
               />
             </Grid>
           ))}

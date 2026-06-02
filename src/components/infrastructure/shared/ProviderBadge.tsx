@@ -5,6 +5,7 @@ const PROVIDER_META: Record<ProviderId, { label: string; color: string }> = {
   aws: { label: 'AWS', color: '#FF9900' },
   azure: { label: 'Azure', color: '#0078D4' },
   oci: { label: 'OCI', color: '#C74634' },
+  vmware: { label: 'VMware', color: '#1B9C2E' },
 };
 
 interface Props {

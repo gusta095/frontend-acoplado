@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Offer } from '../types';
-import { MockMarketplaceClient } from '../api/MockMarketplaceClient';
-
-const client = new MockMarketplaceClient();
+import { useMarketplaceClient } from '../context/MarketplaceClientContext';
 
 export function useOfferDetail(offerId: string) {
+  const { client } = useMarketplaceClient();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +15,7 @@ export function useOfferDetail(offerId: string) {
       .then(setOffer)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [offerId]);
+  }, [client, offerId]);
 
   return { offer, loading, error };
 }

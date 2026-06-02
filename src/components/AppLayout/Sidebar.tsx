@@ -130,7 +130,7 @@ export function Sidebar() {
 
         <SidebarGroup label="Infraestrutura" icon={<LayersIcon fontSize="small" />}>
           <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/cloud-marketplace" />
-          <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" disabled />
+          <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/on-premise" />
         </SidebarGroup>
 
         <SidebarGroup label="Observabilidade" icon={<VisibilityIcon fontSize="small" />} defaultOpen={false}>

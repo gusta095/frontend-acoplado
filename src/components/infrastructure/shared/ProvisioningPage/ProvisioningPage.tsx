@@ -3,6 +3,7 @@ import { AddShoppingCart as AddShoppingCartIcon, Warning as WarningIcon } from '
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
+import { useMarketplaceClient } from '../../../../context/MarketplaceClientContext';
 import { useOfferDetail } from '../../../../hooks/useOfferDetail';
 import { PROVIDER_NAMES } from '../../../../constants/providers';
 import { ProvisioningForm } from './ProvisioningForm';
@@ -44,6 +45,7 @@ export function ProvisioningPage() {
   const location = useLocation();
   const { state } = location as { state: { editValues?: Record<string, string> } | null };
   const { addItem, activeProvider, clearCart, items } = useCart();
+  const { basePath, marketplaceName } = useMarketplaceClient();
   const { offer, loading } = useOfferDetail(offerId ?? '');
   const [values, setValues] = useState<Record<string, string>>(state?.editValues ?? {});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -126,7 +128,7 @@ export function ProvisioningPage() {
 
   const commitAdd = (params: Record<string, string | number | boolean>) => {
     addItem(offer, params);
-    navigate(`/cloud-marketplace/${providerId}`);
+    navigate(`${basePath}/${providerId}`);
   };
 
   const handleSubmit = () => {
@@ -153,15 +155,15 @@ export function ProvisioningPage() {
     <Box p={4} maxWidth={680}>
       <Breadcrumbs sx={{ mb: 3 }}>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate('/cloud-marketplace')}>
-          Cloud Marketplace
+          onClick={() => navigate(basePath)}>
+          {marketplaceName}
         </Link>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate(`/cloud-marketplace/${providerId}`)}>
+          onClick={() => navigate(`${basePath}/${providerId}`)}>
           {PROVIDER_NAMES[providerId ?? ''] ?? providerId}
         </Link>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
-          onClick={() => navigate(`/cloud-marketplace/${providerId}/${offerId}`)}>
+          onClick={() => navigate(`${basePath}/${providerId}/${offerId}`)}>
           {offer.name}
         </Link>
         <Typography variant="body2" color="text.primary" fontWeight={600}>Configurar</Typography>

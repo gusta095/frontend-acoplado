@@ -1,4 +1,4 @@
-export type ProviderId = 'aws' | 'azure' | 'oci';
+export type ProviderId = 'aws' | 'azure' | 'oci' | 'vmware';
 
 export interface Provider {
   id: ProviderId;

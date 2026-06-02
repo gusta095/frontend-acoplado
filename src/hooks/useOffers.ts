@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Offer, OfferCategory, ProviderId } from '../types';
-import { MockMarketplaceClient } from '../api/MockMarketplaceClient';
-
-const client = new MockMarketplaceClient();
+import { useMarketplaceClient } from '../context/MarketplaceClientContext';
 
 export function useOffers(providerId: ProviderId, filters?: { category?: OfferCategory; search?: string }) {
+  const { client } = useMarketplaceClient();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +14,7 @@ export function useOffers(providerId: ProviderId, filters?: { category?: OfferCa
       .then(setOffers)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [providerId, filters?.category, filters?.search]);
+  }, [client, providerId, filters?.category, filters?.search]);
 
   return { offers, loading, error };
 }
