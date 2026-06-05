@@ -9,8 +9,11 @@ import {
   ShoppingCartOutlined as CartIcon,
   CheckCircleOutline as CheckCircleIcon,
 } from '@mui/icons-material';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useDeploymentHistory } from '../../context/DeploymentHistoryContext';
+import { useTemplateSource } from '../../context/TemplateSourceContext';
 
 const USER_NAME = 'Gustavo';
 
@@ -41,12 +44,27 @@ const modules = [
 export function HomePage() {
   const navigate = useNavigate();
   const { items } = useCart();
+  const { batches } = useDeploymentHistory();
+  const { cloudClient } = useTemplateSource();
+  const [providerCount, setProviderCount] = useState<number | null>(null);
+  const [offerCount, setOfferCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    setProviderCount(null);
+    setOfferCount(null);
+    cloudClient.getProviders().then(ps => setProviderCount(ps.length));
+    cloudClient.getAllOffers().then(os => setOfferCount(os.length));
+  }, [cloudClient]);
+
+  const provisionCount = batches.reduce((sum, b) =>
+    sum + b.results.filter(r => r.response.status === 'accepted').length, 0
+  );
 
   const stats = [
-    { icon: <StorefrontIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Providers disponíveis', value: '3' },
-    { icon: <InventoryIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Ofertas no catálogo', value: '8' },
+    { icon: <StorefrontIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Providers disponíveis', value: providerCount !== null ? String(providerCount) : '…' },
+    { icon: <InventoryIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Ofertas no catálogo', value: offerCount !== null ? String(offerCount) : '…' },
     { icon: <CartIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Pedidos no carrinho', value: String(items.length) },
-    { icon: <CheckCircleIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Provisionamentos realizados', value: '0' },
+    { icon: <CheckCircleIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Provisionamentos realizados', value: String(provisionCount) },
   ];
 
   return (

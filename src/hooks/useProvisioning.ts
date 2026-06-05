@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import type { ProvisioningRequest, ProvisioningResponse } from '../types';
-import { MockMarketplaceClient } from '../api/MockMarketplaceClient';
-
-const client = new MockMarketplaceClient();
+import { useTemplateSource } from '../context/TemplateSourceContext';
 
 export function useProvisioning() {
+  const { cloudClient } = useTemplateSource();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ProvisioningResponse[]>([]);
 
   const provision = async (request: ProvisioningRequest): Promise<ProvisioningResponse> => {
     setLoading(true);
     try {
-      const res = await client.provision(request);
+      const res = await cloudClient.provision(request);
       setResults(prev => [...prev, res]);
       return res;
     } finally {
@@ -24,7 +23,7 @@ export function useProvisioning() {
     setResults([]);
     const responses: ProvisioningResponse[] = [];
     for (const req of requests) {
-      const res = await client.provision(req);
+      const res = await cloudClient.provision(req);
       responses.push(res);
       setResults(prev => [...prev, res]);
     }

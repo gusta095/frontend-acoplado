@@ -1,15 +1,21 @@
 import { Box, CircularProgress, Grid, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProviders } from '../../../../hooks/useProviders';
-import mockData from '../../../../mocks/offers.mock.json';
+import { useMarketplaceClient } from '../../../../context/MarketplaceClientContext';
 import { ProviderCard } from './ProviderCard';
 
 export function MarketplacePage() {
   const { providers, loading } = useProviders();
   const navigate = useNavigate();
+  const { client } = useMarketplaceClient();
+  const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
 
-  const getOfferCount = (providerId: string) =>
-    mockData.offers.filter(o => o.providerId === providerId).length;
+  useEffect(() => {
+    if (providers.length === 0) return;
+    Promise.all(providers.map(p => client.getOffers(p.id).then(offers => [p.id, offers.length] as const)))
+      .then(entries => setOfferCounts(Object.fromEntries(entries)));
+  }, [client, providers]);
 
   if (loading) {
     return (
@@ -35,7 +41,7 @@ export function MarketplacePage() {
           <Grid item xs={12} sm={6} md={4} key={provider.id}>
             <ProviderCard
               provider={provider}
-              offerCount={getOfferCount(provider.id)}
+              offerCount={offerCounts[provider.id] ?? 0}
               onClick={() => navigate(`/cloud-marketplace/${provider.id}`)}
             />
           </Grid>

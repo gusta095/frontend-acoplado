@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Autocomplete, Box, CircularProgress, InputAdornment, TextField, Typography } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import type { Offer } from '../../../../types';
-import { MockMarketplaceClient } from '../../../../api/MockMarketplaceClient';
+import { useTemplateSource } from '../../../../context/TemplateSourceContext';
 import { ProviderBadge } from '../../shared/ProviderBadge';
-
-const client = new MockMarketplaceClient();
 
 export function GlobalSearchBar() {
   const navigate = useNavigate();
+  const { cloudClient } = useTemplateSource();
   const [inputValue, setInputValue] = useState('');
   const [options, setOptions] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,7 +23,7 @@ export function GlobalSearchBar() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await client.getAllOffers({ search: inputValue });
+        const results = await cloudClient.getAllOffers({ search: inputValue });
         setOptions(results);
       } finally {
         setLoading(false);

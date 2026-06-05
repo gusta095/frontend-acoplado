@@ -12,6 +12,7 @@ import {
   Layers as LayersIcon,
   Visibility as VisibilityIcon,
   Settings as SettingsIcon,
+  AccountTree as AccountTreeIcon,
   ExpandLess,
   ExpandMore,
 } from '@mui/icons-material';
@@ -141,6 +142,7 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup label="Configurações" icon={<SettingsIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarItem icon={<AccountTreeIcon fontSize="small" />} label="Templates" to="/configuracoes/templates" />
           <SidebarItem icon={<GroupIcon fontSize="small" />} label="Cadastros" disabled />
           <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" disabled />
           <SidebarItem icon={<LockIcon fontSize="small" />} label="Permissões" disabled />
