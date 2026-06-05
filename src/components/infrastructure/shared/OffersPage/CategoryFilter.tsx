@@ -1,4 +1,5 @@
-import { Box, Typography } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { CleaningServices as CleaningServicesIcon } from '@mui/icons-material';
 import type { OfferCategory } from '../../../../types';
 import { CategoryChip } from '../CategoryChip';
 
@@ -30,6 +31,13 @@ export function CategoryFilter({ categories, selected, onChange }: Props) {
           selected={selected.includes(cat)}
         />
       ))}
+      {selected.length > 0 && (
+        <Tooltip title="Limpar filtros">
+          <IconButton size="small" onClick={() => onChange([])} sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' } }}>
+            <CleaningServicesIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   );
 }

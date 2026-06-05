@@ -9,15 +9,7 @@ export interface Provider {
   description: string;
 }
 
-export type OfferCategory =
-  | 'compute'
-  | 'storage'
-  | 'networking'
-  | 'database'
-  | 'security'
-  | 'monitoring'
-  | 'identity'
-  | 'other';
+export type OfferCategory = string;
 
 export type ParameterType = 'string' | 'number' | 'boolean' | 'select' | 'multiselect';
 

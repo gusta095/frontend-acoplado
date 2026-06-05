@@ -1,16 +1,21 @@
 import { Chip } from '@mui/material';
 import type { OfferCategory } from '../../../types';
 
-const CATEGORY_LABELS: Record<OfferCategory, string> = {
-  compute: 'Compute',
-  storage: 'Storage',
+const CATEGORY_LABELS: Record<string, string> = {
+  compute:    'Compute',
+  storage:    'Storage',
   networking: 'Networking',
-  database: 'Database',
-  security: 'Security',
+  database:   'Database',
+  security:   'Security',
   monitoring: 'Monitoring',
-  identity: 'Identity',
-  other: 'Other',
+  identity:   'Identity',
+  base:       'Base',
+  other:      'Other',
 };
+
+function toLabel(category: string): string {
+  return CATEGORY_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
+}
 
 interface Props {
   category: OfferCategory;
@@ -22,7 +27,7 @@ interface Props {
 export function CategoryChip({ category, size = 'small', onClick, selected }: Props) {
   return (
     <Chip
-      label={CATEGORY_LABELS[category]}
+      label={toLabel(category)}
       size={size}
       onClick={onClick}
       variant={selected ? 'filled' : 'outlined'}
