@@ -16,7 +16,7 @@ interface PersistedState {
 }
 
 const defaultPersisted: PersistedState = {
-  source: 'github',
+  source: 'local',
   githubConfig: DEFAULT_GITHUB_CONFIG,
   localPath: '',
   autoReload: false,

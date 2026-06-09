@@ -22,23 +22,23 @@ type VerifyState =
 
 async function verifyLocalPath(localPath: string): Promise<VerifyState> {
   try {
-    const res = await fetch(`/local-templates?action=list&path=${encodeURIComponent(localPath)}`);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error: string };
+    const scanRes = await fetch(`/local-templates?action=scan&path=${encodeURIComponent(localPath)}`);
+    if (!scanRes.ok) {
+      const err = await scanRes.json().catch(() => ({ error: `HTTP ${scanRes.status}` })) as { error: string };
       return { status: 'error', message: err.error };
     }
-    const entries = await res.json() as { name: string; type: string }[];
-    const providers = entries.filter(e => e.type === 'dir' && ['aws', 'azure', 'oci'].includes(e.name));
-    if (providers.length === 0) {
-      const hasTemplatesDir = entries.some(e => e.name === 'templates' && e.type === 'dir');
-      return {
-        status: 'error',
-        message: hasTemplatesDir
-          ? 'O path aponta para a raiz do repo — adicione /templates ao final.'
-          : `Nenhum provider (aws, azure, oci) encontrado em: ${localPath}`,
-      };
-    }
-    return { status: 'ok', message: `Providers encontrados: ${providers.map(p => p.name.toUpperCase()).join(', ')}` };
+    const paths = await scanRes.json() as string[];
+    if (paths.length === 0) return { status: 'error', message: `Nenhum template.yaml/yml encontrado em: ${localPath}` };
+    const providerIds = await Promise.all(paths.map(async p => {
+      const r = await fetch(`/local-templates?action=read&path=${encodeURIComponent(p)}`);
+      if (!r.ok) return null;
+      const { content } = await r.json() as { content: string };
+      const match = content.match(/^provider:\s*(\S+)/m);
+      return match?.[1] ?? null;
+    }));
+    const found = [...new Set(providerIds.filter(Boolean) as string[])];
+    if (found.length === 0) return { status: 'error', message: `Nenhum template com campo provider: encontrado em: ${localPath}` };
+    return { status: 'ok', message: `Providers encontrados: ${found.map(p => p.toUpperCase()).join(', ')}` };
   } catch (e) {
     return { status: 'error', message: `Erro de conexão: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -46,18 +46,33 @@ async function verifyLocalPath(localPath: string): Promise<VerifyState> {
 
 async function verifyGitHubConfig(cfg: GitHubClientConfig): Promise<VerifyState> {
   try {
-    const res = await fetch(
-      `/github-api/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.templatesPath}?ref=${cfg.branch}`,
+    const treeRes = await fetch(
+      `/github-api/repos/${cfg.owner}/${cfg.repo}/git/trees/${cfg.branch}?recursive=1`,
       { headers: { Accept: 'application/vnd.github+json' } }
     );
-    if (res.status === 404) return { status: 'error', message: `Repositório ou caminho não encontrado: ${cfg.owner}/${cfg.repo}/${cfg.templatesPath}` };
-    if (res.status === 401 || res.status === 403) return { status: 'error', message: 'Sem acesso — verifique se o GITHUB_TOKEN está configurado.' };
-    if (!res.ok) return { status: 'error', message: `GitHub API retornou HTTP ${res.status}` };
-
-    const entries = await res.json() as { name: string; type: string }[];
-    const providers = entries.filter(e => e.type === 'dir' && ['aws', 'azure', 'oci'].includes(e.name));
-    if (providers.length === 0) return { status: 'error', message: `Nenhum provider (aws, azure, oci) encontrado em ${cfg.templatesPath}` };
-    return { status: 'ok', message: `Providers encontrados: ${providers.map(p => p.name.toUpperCase()).join(', ')}` };
+    if (treeRes.status === 401 || treeRes.status === 403) return { status: 'error', message: 'Sem acesso — verifique se o GITHUB_TOKEN está configurado.' };
+    if (treeRes.status === 404) return { status: 'error', message: `Repositório não encontrado: ${cfg.owner}/${cfg.repo}` };
+    if (!treeRes.ok) return { status: 'error', message: `GitHub API retornou HTTP ${treeRes.status}` };
+    const tree = await treeRes.json() as { tree: { path: string; type: string }[] };
+    const templatePaths = tree.tree
+      .filter((i: { path: string; type: string }) => i.type === 'blob' && /^template\.ya?ml$/i.test(i.path.split('/').at(-1)!))
+      .map((i: { path: string }) => i.path);
+    if (templatePaths.length === 0) return { status: 'error', message: `Nenhum template.yaml/yml encontrado no repositório` };
+    const providerIds = await Promise.all(templatePaths.map(async (p: string) => {
+      const r = await fetch(
+        `/github-api/repos/${cfg.owner}/${cfg.repo}/contents/${p}?ref=${cfg.branch}`,
+        { headers: { Accept: 'application/vnd.github+json' } }
+      );
+      if (!r.ok) return null;
+      const file = await r.json() as { content?: string };
+      if (!file.content) return null;
+      const text = atob(file.content.replace(/\n/g, ''));
+      const match = text.match(/^provider:\s*(\S+)/m);
+      return match?.[1] ?? null;
+    }));
+    const found = [...new Set(providerIds.filter(Boolean) as string[])];
+    if (found.length === 0) return { status: 'error', message: `Nenhum template com campo provider: encontrado no repositório` };
+    return { status: 'ok', message: `Providers encontrados: ${found.map(p => p.toUpperCase()).join(', ')}` };
   } catch (e) {
     return { status: 'error', message: `Erro de conexão: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -207,7 +222,7 @@ export function TemplatesConfigPage() {
   // Status bar always reflects the committed active source, never the editing panel
   const activeVerify = source === 'github' ? ghVerify : localVerify;
   const activeLabel = source === 'github'
-    ? `github.com/${githubConfig.owner}/${githubConfig.repo} · ${githubConfig.branch} · /${githubConfig.templatesPath}`
+    ? `github.com/${githubConfig.owner}/${githubConfig.repo} · ${githubConfig.branch}`
     : localPath.trim() || 'Pasta local não configurada';
 
   const statusStyle = activeVerify.status === 'ok'
@@ -259,7 +274,7 @@ export function TemplatesConfigPage() {
               Configurações GitHub
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={2.5}>
-              Repositório onde os templates de infraestrutura estão armazenados.
+              Repositório onde os templates estão armazenados — todos os <code>template.yaml</code> serão encontrados automaticamente.
             </Typography>
 
             <Box display="flex" flexDirection="column" gap={2}>
@@ -269,12 +284,8 @@ export function TemplatesConfigPage() {
                 <TextField label="Repositório" size="small" fullWidth value={ghForm.repo}
                   onChange={e => setGhForm(f => ({ ...f, repo: e.target.value }))} />
               </Box>
-              <Box display="flex" gap={2}>
-                <TextField label="Branch" size="small" fullWidth value={ghForm.branch}
-                  onChange={e => setGhForm(f => ({ ...f, branch: e.target.value }))} />
-                <TextField label="Caminho dos Templates" size="small" fullWidth value={ghForm.templatesPath}
-                  onChange={e => setGhForm(f => ({ ...f, templatesPath: e.target.value }))} />
-              </Box>
+              <TextField label="Branch" size="small" fullWidth value={ghForm.branch}
+                onChange={e => setGhForm(f => ({ ...f, branch: e.target.value }))} />
             </Box>
 
             <Divider sx={{ my: 2.5 }} />
@@ -300,7 +311,7 @@ export function TemplatesConfigPage() {
               Configurações Local
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={2.5}>
-              Aponte para a pasta <code>templates/</code> dentro do repositório clonado.
+              Aponte para qualquer pasta — todos os <code>template.yaml</code> serão encontrados automaticamente.
             </Typography>
 
             <TextField

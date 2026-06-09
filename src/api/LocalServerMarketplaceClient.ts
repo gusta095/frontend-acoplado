@@ -3,12 +3,10 @@ import type { MarketplaceApi } from './MarketplaceApi';
 import type { Offer, OfferCategory, OfferParameter, ParameterType, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './GitHubMarketplaceClient';
 
-type Entry = { name: string; type: 'file' | 'dir' };
-
-async function listDir(absPath: string): Promise<Entry[]> {
-  const res = await fetch(`/local-templates?action=list&path=${encodeURIComponent(absPath)}`);
+async function scanTemplates(root: string): Promise<string[]> {
+  const res = await fetch(`/local-templates?action=scan&path=${encodeURIComponent(root)}`);
   if (!res.ok) return [];
-  return res.json() as Promise<Entry[]>;
+  return res.json() as Promise<string[]>;
 }
 
 async function readFile(absPath: string): Promise<string | null> {
@@ -60,8 +58,8 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     this.root = templatesRoot.replace(/\/+$/, '');
   }
 
-  private async fetchTemplateYaml(provider: string, slug: string): Promise<Offer | null> {
-    const content = await readFile(`${this.root}/${provider}/${slug}/template.yaml`);
+  private async fetchTemplateYaml(absPath: string): Promise<Offer | null> {
+    const content = await readFile(absPath);
     if (!content) return null;
     try {
       const tpl = parseYaml(content) as {
@@ -69,6 +67,8 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
         category?: OfferCategory; tags?: string[];
         schema: { required?: string[]; properties: Record<string, unknown> };
       };
+      // slug = name of the folder containing template.yaml
+      const slug = absPath.split('/').at(-2)!;
       return {
         id: slug,
         providerId: tpl.provider as ProviderId,
@@ -84,24 +84,25 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     }
   }
 
+  private async fetchAllOffers(): Promise<Offer[]> {
+    const paths = await scanTemplates(this.root);
+    const results = await Promise.all(paths.map(p => this.fetchTemplateYaml(p)));
+    const offers = results.filter((o): o is Offer => o !== null);
+    offers.forEach(o => this.cache.set(o.id, o));
+    return offers;
+  }
+
   async getProviders(): Promise<Provider[]> {
-    const entries = await listDir(this.root);
-    const found = entries
-      .filter(e => e.type === 'dir')
-      .map(e => CLOUD_PROVIDERS.find(p => p.id === e.name))
+    const offers = await this.fetchAllOffers();
+    const providerIds = [...new Set(offers.map(o => o.providerId))];
+    return providerIds
+      .map(id => CLOUD_PROVIDERS.find(p => p.id === id))
       .filter((p): p is Provider => p !== undefined);
-    return found;
   }
 
   async getOffers(providerId: ProviderId, filters?: { category?: OfferCategory; search?: string }): Promise<Offer[]> {
-    const entries = await listDir(`${this.root}/${providerId}`);
-    const slugs = entries.filter(e => e.type === 'dir').map(e => e.name);
-    const results = await Promise.all(slugs.map(slug => this.fetchTemplateYaml(providerId, slug)));
-    const offers = results.filter((o): o is Offer => o !== null);
-
-    offers.forEach(o => this.cache.set(o.id, o));
-
-    let filtered = offers;
+    const offers = await this.fetchAllOffers();
+    let filtered = offers.filter(o => o.providerId === providerId);
     if (filters?.category) filtered = filtered.filter(o => o.category === filters.category);
     if (filters?.search) {
       const q = filters.search.toLowerCase();
@@ -113,9 +114,7 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
   }
 
   async getAllOffers(filters?: { search?: string }): Promise<Offer[]> {
-    const providers = await this.getProviders();
-    const all = await Promise.all(providers.map(p => this.getOffers(p.id)));
-    let offers = all.flat();
+    let offers = await this.fetchAllOffers();
     if (filters?.search) {
       const q = filters.search.toLowerCase();
       offers = offers.filter(o =>
@@ -127,14 +126,9 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
 
   async getOfferById(offerId: string): Promise<Offer> {
     if (this.cache.has(offerId)) return this.cache.get(offerId)!;
-    const providers = await this.getProviders();
-    for (const provider of providers) {
-      const offer = await this.fetchTemplateYaml(provider.id, offerId);
-      if (offer) {
-        this.cache.set(offerId, offer);
-        return offer;
-      }
-    }
+    const offers = await this.fetchAllOffers();
+    const offer = offers.find(o => o.id === offerId);
+    if (offer) return offer;
     throw new Error(`Oferta não encontrada: ${offerId}`);
   }
 

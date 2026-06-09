@@ -34,6 +34,19 @@ function localTemplatesPlugin(): Plugin {
             res.end(JSON.stringify(
               entries.map(e => ({ name: e.name, type: e.isDirectory() ? 'dir' : 'file' }))
             ))
+          } else if (action === 'scan') {
+            const results: string[] = []
+            const walk = (dir: string) => {
+              let entries: fs.Dirent[]
+              try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+              for (const e of entries) {
+                const full = path.join(dir, e.name)
+                if (e.isDirectory()) walk(full)
+                else if (/^template\.ya?ml$/i.test(e.name)) results.push(full)
+              }
+            }
+            walk(resolved)
+            res.end(JSON.stringify(results))
           } else {
             const content = fs.readFileSync(resolved, 'utf-8')
             res.end(JSON.stringify({ content }))

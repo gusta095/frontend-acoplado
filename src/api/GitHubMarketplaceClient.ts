@@ -6,14 +6,12 @@ export interface GitHubClientConfig {
   owner: string;
   repo: string;
   branch: string;
-  templatesPath: string;
 }
 
 export const DEFAULT_GITHUB_CONFIG: GitHubClientConfig = {
-  owner: 'gusta-lab',
-  repo: 'platform-templates-offers',
+  owner: '',
+  repo: '',
   branch: 'main',
-  templatesPath: 'templates',
 };
 
 export const CLOUD_PROVIDERS: Provider[] = [
@@ -120,48 +118,59 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
     return res.json() as Promise<T>;
   }
 
-  private async fetchTemplateYaml(provider: string, slug: string): Promise<Offer | null> {
-    const { owner, repo, templatesPath } = this.config;
+  private async fetchTemplateByPath(repoPath: string): Promise<Offer | null> {
+    const { owner, repo } = this.config;
     try {
       const file = await this.ghGet<{ content: string }>(
-        `/repos/${owner}/${repo}/contents/${templatesPath}/${provider}/${slug}/template.yaml`
+        `/repos/${owner}/${repo}/contents/${repoPath}`
       );
       const tpl = parseYaml(decodeBase64(file.content)) as TemplateYaml;
+      // slug = name of the folder containing template.yaml
+      const slug = repoPath.split('/').at(-2)!;
       return templateToOffer(slug, tpl);
     } catch {
       return null;
     }
   }
 
-  async getProviders(): Promise<Provider[]> {
-    const { owner, repo, templatesPath } = this.config;
-    type Entry = { name: string; type: 'file' | 'dir' };
+  private async fetchAllOffers(): Promise<Offer[]> {
+    const { owner, repo, branch } = this.config;
+    if (!owner || !repo) return [];
+    type TreeItem = { path: string; type: 'blob' | 'tree' };
+    let items: TreeItem[];
     try {
-      const entries = await this.ghGet<Entry[]>(`/repos/${owner}/${repo}/contents/${templatesPath}`);
-      const folderNames = new Set(entries.filter(e => e.type === 'dir').map(e => e.name));
-      return CLOUD_PROVIDERS.filter(p => folderNames.has(p.id));
-    } catch {
-      return CLOUD_PROVIDERS;
-    }
-  }
-
-  async getOffers(providerId: ProviderId, filters?: { category?: OfferCategory; search?: string }): Promise<Offer[]> {
-    const { owner, repo, templatesPath } = this.config;
-    type Entry = { name: string; type: 'file' | 'dir' };
-    let entries: Entry[];
-    try {
-      entries = await this.ghGet<Entry[]>(`/repos/${owner}/${repo}/contents/${templatesPath}/${providerId}`);
+      const tree = await fetch(
+        `/github-api/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+        { headers: { Accept: 'application/vnd.github+json' } }
+      );
+      if (!tree.ok) return [];
+      const data = await tree.json() as { tree: TreeItem[] };
+      items = data.tree;
     } catch {
       return [];
     }
 
-    const slugs = entries.filter(e => e.type === 'dir').map(e => e.name);
-    const results = await Promise.all(slugs.map(slug => this.fetchTemplateYaml(providerId, slug)));
+    const templatePaths = items
+      .filter(i => i.type === 'blob' && /^template\.ya?ml$/i.test(i.path.split('/').at(-1)!))
+      .map(i => i.path);
+
+    const results = await Promise.all(templatePaths.map(p => this.fetchTemplateByPath(p)));
     const offers = results.filter((o): o is Offer => o !== null);
-
     offers.forEach(o => this.cache.set(o.id, o));
+    return offers;
+  }
 
-    let filtered = offers;
+  async getProviders(): Promise<Provider[]> {
+    const offers = await this.fetchAllOffers();
+    const providerIds = [...new Set(offers.map(o => o.providerId))];
+    return providerIds
+      .map(id => CLOUD_PROVIDERS.find(p => p.id === id))
+      .filter((p): p is Provider => p !== undefined);
+  }
+
+  async getOffers(providerId: ProviderId, filters?: { category?: OfferCategory; search?: string }): Promise<Offer[]> {
+    const offers = await this.fetchAllOffers();
+    let filtered = offers.filter(o => o.providerId === providerId);
     if (filters?.category) filtered = filtered.filter(o => o.category === filters.category);
     if (filters?.search) {
       const q = filters.search.toLowerCase();
@@ -173,8 +182,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   }
 
   async getAllOffers(filters?: { search?: string }): Promise<Offer[]> {
-    const all = await Promise.all(CLOUD_PROVIDERS.map(p => this.getOffers(p.id)));
-    let offers = all.flat();
+    let offers = await this.fetchAllOffers();
     if (filters?.search) {
       const q = filters.search.toLowerCase();
       offers = offers.filter(o =>
@@ -186,13 +194,9 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
 
   async getOfferById(offerId: string): Promise<Offer> {
     if (this.cache.has(offerId)) return this.cache.get(offerId)!;
-    for (const provider of CLOUD_PROVIDERS) {
-      const offer = await this.fetchTemplateYaml(provider.id, offerId);
-      if (offer) {
-        this.cache.set(offerId, offer);
-        return offer;
-      }
-    }
+    const offers = await this.fetchAllOffers();
+    const offer = offers.find(o => o.id === offerId);
+    if (offer) return offer;
     throw new Error(`Oferta não encontrada: ${offerId}`);
   }
 
