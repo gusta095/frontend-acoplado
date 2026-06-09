@@ -8,7 +8,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDeploymentHistory } from '../../../context/DeploymentHistoryContext';
 
-export function DeploymentsListPage() {
+interface Props {
+  basePath?: string;
+}
+
+export function DeploymentsListPage({ basePath = '/deployments' }: Props) {
   const navigate = useNavigate();
   const { batches } = useDeploymentHistory();
 
@@ -55,7 +59,7 @@ export function DeploymentsListPage() {
             <Paper
               key={batch.batchId}
               variant="outlined"
-              onClick={() => navigate(`/deployments/${batch.batchId}`)}
+              onClick={() => navigate(`${basePath}/${batch.batchId}`)}
               sx={{
                 p: 2.5,
                 borderRadius: 2,

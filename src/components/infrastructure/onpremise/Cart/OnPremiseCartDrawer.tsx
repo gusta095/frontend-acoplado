@@ -2,12 +2,12 @@ import { Box, Button, CircularProgress, Divider, Drawer, IconButton, LinearProgr
 import { Close as CloseIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../../../../context/CartContext';
-import { useDeploymentHistory } from '../../../../context/DeploymentHistoryContext';
-import { useTemplateSource } from '../../../../context/TemplateSourceContext';
+import { useOnPremiseCart } from '../../../../context/OnPremiseCartContext';
+import { useOnPremiseDeploymentHistory } from '../../../../context/OnPremiseDeploymentHistoryContext';
+import { useOnPremiseSource } from '../../../../context/OnPremiseSourceContext';
 import type { CartItem, ProvisioningRequest, ProvisioningResponse } from '../../../../types';
-import { CartEmptyState } from './CartEmptyState';
-import { CartItemCard } from './CartItemCard';
+import { CartEmptyState } from '../../shared/Cart/CartEmptyState';
+import { CartItemCard } from '../../shared/Cart/CartItemCard';
 
 interface Props {
   open: boolean;
@@ -16,16 +16,16 @@ interface Props {
 
 type Step = 'idle' | 'loading' | 'done';
 
-export function CartDrawer({ open, onClose }: Props) {
+export function OnPremiseCartDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
-  const { items, removeItem } = useCart();
-  const { addBatch } = useDeploymentHistory();
-  const { cloudClient } = useTemplateSource();
+  const { items, removeItem } = useOnPremiseCart();
+  const { addBatch } = useOnPremiseDeploymentHistory();
+  const { onPremiseClient } = useOnPremiseSource();
 
   const provisionAll = async (requests: ProvisioningRequest[]): Promise<ProvisioningResponse[]> => {
     const responses: ProvisioningResponse[] = [];
     for (const req of requests) {
-      responses.push(await cloudClient.provision(req));
+      responses.push(await onPremiseClient.provision(req));
     }
     return responses;
   };
@@ -75,7 +75,7 @@ export function CartDrawer({ open, onClose }: Props) {
     for (const [k, v] of Object.entries(item.parameters)) {
       editValues[k] = String(v);
     }
-    navigate(`/cloud-marketplace/${item.offer.providerId}/${item.offer.id}/provision`, {
+    navigate(`/on-premise/${item.offer.providerId}/${item.offer.id}/provision`, {
       state: { editValues },
     });
   };
@@ -97,7 +97,7 @@ export function CartDrawer({ open, onClose }: Props) {
       setCurrentBatchId('');
       onClose();
       if (wasDone && targetBatchId) {
-        navigate(`/deployments/${targetBatchId}`);
+        navigate(`/on-premise/deployments/${targetBatchId}`);
       }
     }
   };
@@ -113,7 +113,6 @@ export function CartDrawer({ open, onClose }: Props) {
       onClose={step === 'loading' ? undefined : handleClose}
       PaperProps={{ sx: { width: 420, display: 'flex', flexDirection: 'column' } }}
     >
-      {/* Header */}
       <Box px={2.5} py={2} display="flex" alignItems="center" justifyContent="space-between" borderBottom="1px solid #E2E8F0">
         <Box>
           <Typography variant="h6" fontWeight={700} color="text.primary">Meus Pedidos</Typography>
@@ -130,7 +129,6 @@ export function CartDrawer({ open, onClose }: Props) {
 
       {step === 'loading' && <LinearProgress sx={{ height: 2 }} />}
 
-      {/* Content */}
       <Box flex={1} overflow="auto" p={2} display="flex" flexDirection="column" gap={1.5}>
         {displayItems.length === 0 ? (
           <CartEmptyState />
@@ -148,7 +146,6 @@ export function CartDrawer({ open, onClose }: Props) {
         )}
       </Box>
 
-      {/* Footer idle */}
       {step === 'idle' && items.length > 0 && (
         <>
           <Divider />
@@ -160,7 +157,6 @@ export function CartDrawer({ open, onClose }: Props) {
         </>
       )}
 
-      {/* Footer loading */}
       {step === 'loading' && (
         <>
           <Divider />
@@ -172,7 +168,6 @@ export function CartDrawer({ open, onClose }: Props) {
         </>
       )}
 
-      {/* Footer done */}
       {step === 'done' && (
         <>
           <Divider />
@@ -186,7 +181,7 @@ export function CartDrawer({ open, onClose }: Props) {
 
             {failureCount > 0 && (
               <Typography variant="caption" color="text.secondary" textAlign="center" display="block">
-                {failureCount} {failureCount === 1 ? 'item permaneceu' : 'itens permaneceram'} no carrinho. Verifique os parâmetros e tente novamente.
+                {failureCount} {failureCount === 1 ? 'item permaneceu' : 'itens permaneceram'} no carrinho.
               </Typography>
             )}
 

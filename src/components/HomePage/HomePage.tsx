@@ -1,21 +1,41 @@
 import { Box, Button, Chip, Grid, Paper, Typography } from '@mui/material';
 import {
   Cloud as CloudIcon,
+  Storage as StorageIcon,
   Settings as SettingsIcon,
-  RocketLaunch as RocketLaunchIcon,
   ArrowForward as ArrowForwardIcon,
   Inventory2Outlined as InventoryIcon,
   StorefrontOutlined as StorefrontIcon,
   ShoppingCartOutlined as CartIcon,
   CheckCircleOutline as CheckCircleIcon,
 } from '@mui/icons-material';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useOnPremiseCart } from '../../context/OnPremiseCartContext';
 import { useDeploymentHistory } from '../../context/DeploymentHistoryContext';
+import { useOnPremiseDeploymentHistory } from '../../context/OnPremiseDeploymentHistoryContext';
 import { useTemplateSource } from '../../context/TemplateSourceContext';
+import { useOnPremiseSource } from '../../context/OnPremiseSourceContext';
 
 const USER_NAME = 'Gustavo';
+
+function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{ px: 2.5, py: 2, borderRadius: 2, borderColor: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}
+    >
+      <Box sx={{ width: 40, height: 40, borderRadius: 1.5, backgroundColor: 'rgba(0,48,135,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icon}
+      </Box>
+      <Box>
+        <Typography variant="h6" fontWeight={800} color="text.primary" lineHeight={1}>{value}</Typography>
+        <Typography variant="caption" color="text.secondary" lineHeight={1.3} display="block">{label}</Typography>
+      </Box>
+    </Paper>
+  );
+}
 
 const modules = [
   {
@@ -26,10 +46,10 @@ const modules = [
     active: true,
   },
   {
-    icon: <RocketLaunchIcon sx={{ fontSize: 36 }} />,
-    title: 'Implantações',
-    description: 'Histórico de provisionamentos e detalhes por lote.',
-    to: '/deployments',
+    icon: <StorageIcon sx={{ fontSize: 36 }} />,
+    title: 'On-Premise Marketplace',
+    description: 'Provisione VMs e recursos em infraestrutura local com VMware, Proxmox e Bare Metal.',
+    to: '/on-premise',
     active: true,
   },
   {
@@ -43,28 +63,53 @@ const modules = [
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { items } = useCart();
-  const { batches } = useDeploymentHistory();
+  const { items: cloudItems } = useCart();
+  const { items: onPremiseItems } = useOnPremiseCart();
+  const { batches: cloudBatches } = useDeploymentHistory();
+  const { batches: onPremiseBatches } = useOnPremiseDeploymentHistory();
   const { cloudClient } = useTemplateSource();
-  const [providerCount, setProviderCount] = useState<number | null>(null);
-  const [offerCount, setOfferCount] = useState<number | null>(null);
+  const { onPremiseClient } = useOnPremiseSource();
+
+  const [cloudProviderCount, setCloudProviderCount] = useState<number | null>(null);
+  const [cloudOfferCount, setCloudOfferCount] = useState<number | null>(null);
+  const [onPremiseProviderCount, setOnPremiseProviderCount] = useState<number | null>(null);
+  const [onPremiseOfferCount, setOnPremiseOfferCount] = useState<number | null>(null);
 
   useEffect(() => {
-    setProviderCount(null);
-    setOfferCount(null);
-    cloudClient.getProviders().then(ps => setProviderCount(ps.length));
-    cloudClient.getAllOffers().then(os => setOfferCount(os.length));
+    setCloudProviderCount(null);
+    setCloudOfferCount(null);
+    cloudClient.getProviders().then(ps => setCloudProviderCount(ps.length));
+    cloudClient.getAllOffers().then(os => setCloudOfferCount(os.length));
   }, [cloudClient]);
 
-  const provisionCount = batches.reduce((sum, b) =>
+  useEffect(() => {
+    setOnPremiseProviderCount(null);
+    setOnPremiseOfferCount(null);
+    onPremiseClient.getProviders().then(ps => setOnPremiseProviderCount(ps.length));
+    onPremiseClient.getAllOffers().then(os => setOnPremiseOfferCount(os.length));
+  }, [onPremiseClient]);
+
+  const cloudProvisionCount = cloudBatches.reduce((sum, b) =>
+    sum + b.results.filter(r => r.response.status === 'accepted').length, 0
+  );
+  const onPremiseProvisionCount = onPremiseBatches.reduce((sum, b) =>
     sum + b.results.filter(r => r.response.status === 'accepted').length, 0
   );
 
-  const stats = [
-    { icon: <StorefrontIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Providers disponíveis', value: providerCount !== null ? String(providerCount) : '…' },
-    { icon: <InventoryIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Ofertas no catálogo', value: offerCount !== null ? String(offerCount) : '…' },
-    { icon: <CartIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Pedidos no carrinho', value: String(items.length) },
-    { icon: <CheckCircleIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Provisionamentos realizados', value: String(provisionCount) },
+  const fmt = (v: number | null) => v !== null ? String(v) : '…';
+
+  const cloudStats = [
+    { icon: <StorefrontIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Providers', value: fmt(cloudProviderCount) },
+    { icon: <InventoryIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Ofertas', value: fmt(cloudOfferCount) },
+    { icon: <CartIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'No carrinho', value: String(cloudItems.length) },
+    { icon: <CheckCircleIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Provisionamentos', value: String(cloudProvisionCount) },
+  ];
+
+  const onPremiseStats = [
+    { icon: <StorefrontIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Providers', value: fmt(onPremiseProviderCount) },
+    { icon: <InventoryIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Ofertas', value: fmt(onPremiseOfferCount) },
+    { icon: <CartIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'No carrinho', value: String(onPremiseItems.length) },
+    { icon: <CheckCircleIcon sx={{ fontSize: 22, color: '#003087' }} />, label: 'Provisionamentos', value: String(onPremiseProvisionCount) },
   ];
 
   return (
@@ -219,49 +264,31 @@ export function HomePage() {
           ))}
         </Grid>
 
-        {/* Acesso rápido */}
-        <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 2, fontSize: '0.7rem', fontWeight: 700 }}>
-          Acesso rápido
-        </Typography>
-
-        <Grid container spacing={2} mt={0.5}>
-          {stats.map((stat) => (
+        {/* Estatísticas */}
+        <Box display="flex" alignItems="center" gap={1} mt={0} mb={1}>
+          <CloudIcon sx={{ fontSize: 16, color: '#003087' }} />
+          <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 2, fontSize: '0.7rem', fontWeight: 700 }}>
+            Cloud
+          </Typography>
+        </Box>
+        <Grid container spacing={2} mb={3}>
+          {cloudStats.map((stat) => (
             <Grid item xs={6} md={3} key={stat.label}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  px: 2.5,
-                  py: 2,
-                  borderRadius: 2,
-                  borderColor: '#E2E8F0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    backgroundColor: 'rgba(0,48,135,0.07)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {stat.icon}
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight={800} color="text.primary" lineHeight={1}>
-                    {stat.value}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" lineHeight={1.3} display="block">
-                    {stat.label}
-                  </Typography>
-                </Box>
-              </Paper>
+              <StatCard {...stat} />
+            </Grid>
+          ))}
+        </Grid>
+
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <StorageIcon sx={{ fontSize: 16, color: '#003087' }} />
+          <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: 2, fontSize: '0.7rem', fontWeight: 700 }}>
+            On-Premise
+          </Typography>
+        </Box>
+        <Grid container spacing={2}>
+          {onPremiseStats.map((stat) => (
+            <Grid item xs={6} md={3} key={stat.label}>
+              <StatCard {...stat} />
             </Grid>
           ))}
         </Grid>

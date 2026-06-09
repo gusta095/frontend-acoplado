@@ -7,9 +7,10 @@ interface Props {
   label: string;
   to?: string;
   disabled?: boolean;
+  indent?: boolean;
 }
 
-export function SidebarItem({ icon, label, to, disabled }: Props) {
+export function SidebarItem({ icon, label, to, disabled, indent }: Props) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isActive = to ? pathname.startsWith(to) : false;
@@ -22,7 +23,8 @@ export function SidebarItem({ icon, label, to, disabled }: Props) {
         borderRadius: 1.5,
         mx: 1,
         mb: 0.5,
-        px: 1.5,
+        pl: indent ? 3.5 : 1.5,
+        pr: 1.5,
         py: 1,
         backgroundColor: isActive ? 'rgba(0,48,135,0.1)' : 'transparent',
         color: isActive ? '#003087' : '#4A5568',

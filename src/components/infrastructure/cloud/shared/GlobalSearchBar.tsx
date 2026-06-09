@@ -4,13 +4,17 @@ import { Autocomplete, Box, CircularProgress, InputAdornment, TextField, Typogra
 import { Search as SearchIcon } from '@mui/icons-material';
 import type { Offer } from '../../../../types';
 import { useTemplateSource } from '../../../../context/TemplateSourceContext';
+import { useOnPremiseSource } from '../../../../context/OnPremiseSourceContext';
 import { ProviderBadge } from '../../shared/ProviderBadge';
+
+type TaggedOffer = Offer & { _domain: 'cloud' | 'onpremise' };
 
 export function GlobalSearchBar() {
   const navigate = useNavigate();
   const { cloudClient } = useTemplateSource();
+  const { onPremiseClient } = useOnPremiseSource();
   const [inputValue, setInputValue] = useState('');
-  const [options, setOptions] = useState<Offer[]>([]);
+  const [options, setOptions] = useState<TaggedOffer[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -23,13 +27,19 @@ export function GlobalSearchBar() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await cloudClient.getAllOffers({ search: inputValue });
-        setOptions(results);
+        const [cloudResults, onPremiseResults] = await Promise.all([
+          cloudClient.getAllOffers({ search: inputValue }),
+          onPremiseClient.getAllOffers({ search: inputValue }),
+        ]);
+        setOptions([
+          ...cloudResults.map(o => ({ ...o, _domain: 'cloud' as const })),
+          ...onPremiseResults.map(o => ({ ...o, _domain: 'onpremise' as const })),
+        ]);
       } finally {
         setLoading(false);
       }
     }, 300);
-  }, [inputValue]);
+  }, [inputValue, cloudClient, onPremiseClient]);
 
   return (
     <Autocomplete
@@ -40,12 +50,13 @@ export function GlobalSearchBar() {
       onInputChange={(_, val) => setInputValue(val)}
       onChange={(_, val) => {
         if (val && typeof val !== 'string') {
-          navigate(`/cloud-marketplace/${val.providerId}/${val.id}`);
+          const base = val._domain === 'onpremise' ? '/on-premise' : '/cloud-marketplace';
+          navigate(`${base}/${val.providerId}/${val.id}`);
           setInputValue('');
         }
       }}
       loading={loading}
-      groupBy={(opt) => (typeof opt === 'string' ? '' : opt.providerId.toUpperCase())}
+      groupBy={(opt) => (typeof opt === 'string' ? '' : opt._domain === 'onpremise' ? 'ON-PREMISE' : 'CLOUD')}
       noOptionsText="Nenhuma oferta encontrada"
       sx={{ width: '100%', maxWidth: 480 }}
       renderInput={(params) => (

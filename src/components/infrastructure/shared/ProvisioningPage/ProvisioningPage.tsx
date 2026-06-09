@@ -2,7 +2,7 @@ import { Box, Breadcrumbs, Button, CircularProgress, Dialog, DialogActions, Dial
 import { AddShoppingCart as AddShoppingCartIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useCart } from '../../../../context/CartContext';
+import { useActiveCart } from '../../../../hooks/useActiveCart';
 import { useMarketplaceClient } from '../../../../context/MarketplaceClientContext';
 import { useOfferDetail } from '../../../../hooks/useOfferDetail';
 import { PROVIDER_NAMES } from '../../../../constants/providers';
@@ -44,7 +44,7 @@ export function ProvisioningPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = location as { state: { editValues?: Record<string, string> } | null };
-  const { addItem, activeProvider, clearCart, items } = useCart();
+  const { addItem, activeProvider, clearCart, items } = useActiveCart();
   const { basePath, marketplaceName } = useMarketplaceClient();
   const { offer, loading } = useOfferDetail(offerId ?? '');
   const [values, setValues] = useState<Record<string, string>>(state?.editValues ?? {});

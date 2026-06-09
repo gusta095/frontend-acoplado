@@ -4,25 +4,50 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { theme } from './theme';
 import { CartProvider } from './context/CartContext';
 import { DeploymentHistoryProvider } from './context/DeploymentHistoryContext';
+import { OnPremiseCartProvider } from './context/OnPremiseCartContext';
+import { OnPremiseDeploymentHistoryProvider } from './context/OnPremiseDeploymentHistoryContext';
 import { MarketplaceClientProvider } from './context/MarketplaceClientContext';
 import { TemplateSourceProvider, useTemplateSource } from './context/TemplateSourceContext';
-import { onPremiseClient } from './api/clients';
+import { OnPremiseSourceProvider, useOnPremiseSource } from './context/OnPremiseSourceContext';
 import { AppLayout } from './components/AppLayout/AppLayout';
 import { HomePage } from './components/HomePage/HomePage';
 import { DeploymentsListPage } from './components/observability/deployments/DeploymentsListPage';
 import { DeploymentPage } from './components/observability/deployments/DeploymentPage';
+import { OnPremiseDeploymentsListPage } from './components/observability/deployments/OnPremiseDeploymentsListPage';
+import { OnPremiseDeploymentPage } from './components/observability/deployments/OnPremiseDeploymentPage';
 import { MarketplacePage } from './components/infrastructure/cloud/MarketplacePage/MarketplacePage';
 import { OnPremiseMarketplacePage } from './components/infrastructure/onpremise/MarketplacePage/OnPremiseMarketplacePage';
 import { OffersPage } from './components/infrastructure/shared/OffersPage/OffersPage';
 import { OfferDetailPage } from './components/infrastructure/shared/OfferDetailPage/OfferDetailPage';
 import { ProvisioningPage } from './components/infrastructure/shared/ProvisioningPage/ProvisioningPage';
 import { TemplatesConfigPage } from './components/configuracoes/templates/TemplatesConfigPage';
+import { CloudTemplatesConfigPage } from './components/configuracoes/templates/CloudTemplatesConfigPage';
+import { OnPremiseTemplatesConfigPage } from './components/configuracoes/templates/OnPremiseTemplatesConfigPage';
 
-function CloudProvider({ children }: { children: React.ReactNode }) {
+function CloudRoutes() {
   const { cloudClient } = useTemplateSource();
   return (
     <MarketplaceClientProvider client={cloudClient} basePath="/cloud-marketplace" marketplaceName="Cloud Marketplace">
-      {children}
+      <Routes>
+        <Route index element={<MarketplacePage />} />
+        <Route path=":providerId" element={<OffersPage />} />
+        <Route path=":providerId/:offerId" element={<OfferDetailPage />} />
+        <Route path=":providerId/:offerId/provision" element={<ProvisioningPage />} />
+      </Routes>
+    </MarketplaceClientProvider>
+  );
+}
+
+function OnPremiseRoutes() {
+  const { onPremiseClient } = useOnPremiseSource();
+  return (
+    <MarketplaceClientProvider client={onPremiseClient} basePath="/on-premise" marketplaceName="On-Premise">
+      <Routes>
+        <Route index element={<OnPremiseMarketplacePage />} />
+        <Route path=":providerId" element={<OffersPage />} />
+        <Route path=":providerId/:offerId" element={<OfferDetailPage />} />
+        <Route path=":providerId/:offerId/provision" element={<ProvisioningPage />} />
+      </Routes>
     </MarketplaceClientProvider>
   );
 }
@@ -30,51 +55,39 @@ function CloudProvider({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <TemplateSourceProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <DeploymentHistoryProvider>
-          <CartProvider>
-            <BrowserRouter>
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
+      <OnPremiseSourceProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <DeploymentHistoryProvider>
+            <OnPremiseDeploymentHistoryProvider>
+              <CartProvider>
+                <OnPremiseCartProvider>
+                  <BrowserRouter>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/" element={<HomePage />} />
 
-                  <Route path="/cloud-marketplace" element={<CloudProvider><MarketplacePage /></CloudProvider>} />
-                  <Route path="/cloud-marketplace/:providerId" element={<CloudProvider><OffersPage /></CloudProvider>} />
-                  <Route path="/cloud-marketplace/:providerId/:offerId" element={<CloudProvider><OfferDetailPage /></CloudProvider>} />
-                  <Route path="/cloud-marketplace/:providerId/:offerId/provision" element={<CloudProvider><ProvisioningPage /></CloudProvider>} />
+                        <Route path="/cloud-marketplace/*" element={<CloudRoutes />} />
 
-                  <Route path="/on-premise" element={
-                    <MarketplaceClientProvider client={onPremiseClient} basePath="/on-premise" marketplaceName="On-Premise">
-                      <OnPremiseMarketplacePage />
-                    </MarketplaceClientProvider>
-                  } />
-                  <Route path="/on-premise/:providerId" element={
-                    <MarketplaceClientProvider client={onPremiseClient} basePath="/on-premise" marketplaceName="On-Premise">
-                      <OffersPage />
-                    </MarketplaceClientProvider>
-                  } />
-                  <Route path="/on-premise/:providerId/:offerId" element={
-                    <MarketplaceClientProvider client={onPremiseClient} basePath="/on-premise" marketplaceName="On-Premise">
-                      <OfferDetailPage />
-                    </MarketplaceClientProvider>
-                  } />
-                  <Route path="/on-premise/:providerId/:offerId/provision" element={
-                    <MarketplaceClientProvider client={onPremiseClient} basePath="/on-premise" marketplaceName="On-Premise">
-                      <ProvisioningPage />
-                    </MarketplaceClientProvider>
-                  } />
+                        <Route path="/on-premise/*" element={<OnPremiseRoutes />} />
+                        <Route path="/on-premise/deployments" element={<OnPremiseDeploymentsListPage />} />
+                        <Route path="/on-premise/deployments/:batchId" element={<OnPremiseDeploymentPage />} />
 
-                  <Route path="/deployments" element={<DeploymentsListPage />} />
-                  <Route path="/deployments/:batchId" element={<DeploymentPage />} />
+                        <Route path="/deployments" element={<DeploymentsListPage />} />
+                        <Route path="/deployments/:batchId" element={<DeploymentPage />} />
 
-                  <Route path="/configuracoes/templates" element={<TemplatesConfigPage />} />
-                </Routes>
-              </AppLayout>
-            </BrowserRouter>
-          </CartProvider>
-        </DeploymentHistoryProvider>
-      </ThemeProvider>
+                        <Route path="/configuracoes/templates" element={<TemplatesConfigPage />} />
+                        <Route path="/configuracoes/templates/cloud" element={<CloudTemplatesConfigPage />} />
+                        <Route path="/configuracoes/templates/on-premise" element={<OnPremiseTemplatesConfigPage />} />
+                      </Routes>
+                    </AppLayout>
+                  </BrowserRouter>
+                </OnPremiseCartProvider>
+              </CartProvider>
+            </OnPremiseDeploymentHistoryProvider>
+          </DeploymentHistoryProvider>
+        </ThemeProvider>
+      </OnPremiseSourceProvider>
     </TemplateSourceProvider>
   );
 }

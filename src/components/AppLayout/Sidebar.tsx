@@ -135,14 +135,20 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup label="Observabilidade" icon={<VisibilityIcon fontSize="small" />} defaultOpen={false}>
-          <SidebarItem icon={<RocketLaunchIcon fontSize="small" />} label="Implantações" to="/deployments" />
+          <SidebarGroup label="Implantações" icon={<RocketLaunchIcon fontSize="small" />} defaultOpen={false}>
+            <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/deployments" indent />
+            <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/on-premise/deployments" indent />
+          </SidebarGroup>
           <SidebarItem icon={<DashboardIcon fontSize="small" />} label="Dashboards" disabled />
           <SidebarItem icon={<BarChartIcon fontSize="small" />} label="Métricas" disabled />
           <SidebarItem icon={<ArticleIcon fontSize="small" />} label="Logs" disabled />
         </SidebarGroup>
 
         <SidebarGroup label="Configurações" icon={<SettingsIcon fontSize="small" />} defaultOpen={false}>
-          <SidebarItem icon={<AccountTreeIcon fontSize="small" />} label="Templates" to="/configuracoes/templates" />
+          <SidebarGroup label="Templates" icon={<AccountTreeIcon fontSize="small" />} defaultOpen={false}>
+            <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/configuracoes/templates/cloud" indent />
+            <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/configuracoes/templates/on-premise" indent />
+          </SidebarGroup>
           <SidebarItem icon={<GroupIcon fontSize="small" />} label="Cadastros" disabled />
           <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" disabled />
           <SidebarItem icon={<LockIcon fontSize="small" />} label="Permissões" disabled />

@@ -10,7 +10,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDeploymentHistory } from '../../../context/DeploymentHistoryContext';
 import { ProviderBadge } from '../../infrastructure/shared/ProviderBadge';
 
-export function DeploymentPage() {
+interface Props {
+  basePath?: string;
+  marketplacePath?: string;
+}
+
+export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/cloud-marketplace' }: Props) {
   const navigate = useNavigate();
   const { batchId } = useParams<{ batchId: string }>();
   const { batches, getBatch } = useDeploymentHistory();
@@ -26,7 +31,7 @@ export function DeploymentPage() {
         <Typography variant="body2" color="text.disabled">
           Este lote pode ter sido removido ou o link é inválido.
         </Typography>
-        <Button variant="contained" onClick={() => navigate('/deployments')} sx={{ mt: 1 }}>
+        <Button variant="contained" onClick={() => navigate(basePath)} sx={{ mt: 1 }}>
           Ver histórico
         </Button>
       </Box>
@@ -50,7 +55,7 @@ export function DeploymentPage() {
     <Box p={{ xs: 3, md: 5 }} maxWidth={760}>
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/deployments')}
+        onClick={() => navigate(basePath)}
         sx={{ mb: 3, color: 'text.secondary', px: 0, '&:hover': { backgroundColor: 'transparent', color: 'text.primary' } }}
         disableRipple
       >
@@ -202,12 +207,12 @@ export function DeploymentPage() {
       </Box>
 
       <Box display="flex" gap={2} flexWrap="wrap">
-        <Button variant="contained" startIcon={<CloudIcon />} onClick={() => navigate('/cloud-marketplace')}>
+        <Button variant="contained" startIcon={<CloudIcon />} onClick={() => navigate(marketplacePath)}>
           Novo provisionamento
         </Button>
         <Button
           variant="outlined"
-          onClick={() => navigate('/deployments')}
+          onClick={() => navigate(basePath)}
           sx={{ borderColor: '#E2E8F0', color: 'text.secondary' }}
         >
           Ver histórico

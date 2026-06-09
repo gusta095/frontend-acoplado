@@ -53,9 +53,11 @@ function mapParameters(schema: {
 export class LocalServerMarketplaceClient implements MarketplaceApi {
   private cache = new Map<string, Offer>();
   private root: string;
+  private providers: Provider[];
 
-  constructor(templatesRoot: string) {
+  constructor(templatesRoot: string, providers: Provider[] = CLOUD_PROVIDERS) {
     this.root = templatesRoot.replace(/\/+$/, '');
+    this.providers = providers;
   }
 
   private async fetchTemplateYaml(absPath: string): Promise<Offer | null> {
@@ -96,7 +98,7 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     const offers = await this.fetchAllOffers();
     const providerIds = [...new Set(offers.map(o => o.providerId))];
     return providerIds
-      .map(id => CLOUD_PROVIDERS.find(p => p.id === id))
+      .map(id => this.providers.find(p => p.id === id))
       .filter((p): p is Provider => p !== undefined);
   }
 

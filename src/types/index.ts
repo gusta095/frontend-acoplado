@@ -1,4 +1,4 @@
-export type ProviderId = 'aws' | 'azure' | 'oci' | 'vmware';
+export type ProviderId = 'aws' | 'azure' | 'oci' | 'vmware' | 'proxmox' | 'baremetal';
 
 export interface Provider {
   id: ProviderId;

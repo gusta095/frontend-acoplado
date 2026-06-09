@@ -1,9 +1,15 @@
 import { AppBar, Box, Toolbar } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { GlobalSearchBar } from '../infrastructure/cloud/shared/GlobalSearchBar';
 import { CartButton } from '../infrastructure/shared/Cart/CartButton';
+import { OnPremiseCartButton } from '../infrastructure/onpremise/Cart/OnPremiseCartButton';
 import { SIDEBAR_WIDTH } from './Sidebar';
 
 export function TopBar() {
+  const { pathname } = useLocation();
+  const isOnPremise = pathname.startsWith('/on-premise');
+  const isCloud = pathname.startsWith('/cloud-marketplace');
+
   return (
     <AppBar
       position="fixed"
@@ -20,7 +26,8 @@ export function TopBar() {
         <Box flex={1} display="flex" justifyContent="center">
           <GlobalSearchBar />
         </Box>
-        <CartButton />
+        {isCloud && <CartButton />}
+        {isOnPremise && <OnPremiseCartButton />}
       </Toolbar>
     </AppBar>
   );

@@ -13,13 +13,13 @@ export interface DeploymentBatch {
   results: DeploymentResult[];
 }
 
-interface DeploymentHistoryContextValue {
+interface OnPremiseDeploymentHistoryContextValue {
   batches: DeploymentBatch[];
   addBatch: (batch: DeploymentBatch) => void;
   getBatch: (batchId: string) => DeploymentBatch | undefined;
 }
 
-const STORAGE_KEY = 'cloud-marketplace:deployment-history';
+const STORAGE_KEY = 'on-premise:deployment-history';
 
 function loadFromStorage(): DeploymentBatch[] {
   try {
@@ -33,14 +33,12 @@ function loadFromStorage(): DeploymentBatch[] {
 function saveToStorage(batches: DeploymentBatch[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(batches));
-  } catch {
-    // quota exceeded — silently ignore
-  }
+  } catch { /* quota exceeded */ }
 }
 
-export const DeploymentHistoryContext = createContext<DeploymentHistoryContextValue | null>(null);
+const OnPremiseDeploymentHistoryContext = createContext<OnPremiseDeploymentHistoryContextValue | null>(null);
 
-export function DeploymentHistoryProvider({ children }: { children: React.ReactNode }) {
+export function OnPremiseDeploymentHistoryProvider({ children }: { children: React.ReactNode }) {
   const [batches, setBatches] = useState<DeploymentBatch[]>(loadFromStorage);
 
   const addBatch = useCallback((batch: DeploymentBatch) => {
@@ -57,14 +55,14 @@ export function DeploymentHistoryProvider({ children }: { children: React.ReactN
   );
 
   return (
-    <DeploymentHistoryContext.Provider value={{ batches, addBatch, getBatch }}>
+    <OnPremiseDeploymentHistoryContext.Provider value={{ batches, addBatch, getBatch }}>
       {children}
-    </DeploymentHistoryContext.Provider>
+    </OnPremiseDeploymentHistoryContext.Provider>
   );
 }
 
-export function useDeploymentHistory(): DeploymentHistoryContextValue {
-  const ctx = useContext(DeploymentHistoryContext);
-  if (!ctx) throw new Error('useDeploymentHistory must be used within DeploymentHistoryProvider');
+export function useOnPremiseDeploymentHistory(): OnPremiseDeploymentHistoryContextValue {
+  const ctx = useContext(OnPremiseDeploymentHistoryContext);
+  if (!ctx) throw new Error('useOnPremiseDeploymentHistory must be used within OnPremiseDeploymentHistoryProvider');
   return ctx;
 }

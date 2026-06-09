@@ -1,6 +1,9 @@
 import { load as parseYaml } from 'js-yaml';
 import type { MarketplaceApi } from './MarketplaceApi';
 import type { Offer, OfferCategory, OfferParameter, ParameterType, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
+import { CLOUD_PROVIDERS } from './cloudProviders';
+
+export { CLOUD_PROVIDERS };
 
 export interface GitHubClientConfig {
   owner: string;
@@ -13,12 +16,6 @@ export const DEFAULT_GITHUB_CONFIG: GitHubClientConfig = {
   repo: '',
   branch: 'main',
 };
-
-export const CLOUD_PROVIDERS: Provider[] = [
-  { id: 'aws',   name: 'Amazon Web Services',        shortName: 'AWS',   logoUrl: '', accentColor: '#FF9900', description: 'Compute, storage, databases e mais na maior cloud do mundo.' },
-  { id: 'azure', name: 'Microsoft Azure',             shortName: 'Azure', logoUrl: '', accentColor: '#0078D4', description: 'Serviços cloud da Microsoft com integração nativa ao ecossistema enterprise.' },
-  { id: 'oci',   name: 'Oracle Cloud Infrastructure', shortName: 'OCI',   logoUrl: '', accentColor: '#C74634', description: 'Infraestrutura de alto desempenho com foco em workloads críticos.' },
-];
 
 interface TemplateYaml {
   name: string;
@@ -104,10 +101,12 @@ function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
 
 export class GitHubMarketplaceClient implements MarketplaceApi {
   private config: GitHubClientConfig;
+  private providers: Provider[];
   private cache = new Map<string, Offer>();
 
-  constructor(config: Partial<GitHubClientConfig> = {}) {
+  constructor(config: Partial<GitHubClientConfig> = {}, providers: Provider[] = CLOUD_PROVIDERS) {
     this.config = { ...DEFAULT_GITHUB_CONFIG, ...config };
+    this.providers = providers;
   }
 
   private async ghGet<T>(path: string): Promise<T> {
@@ -164,7 +163,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
     const offers = await this.fetchAllOffers();
     const providerIds = [...new Set(offers.map(o => o.providerId))];
     return providerIds
-      .map(id => CLOUD_PROVIDERS.find(p => p.id === id))
+      .map(id => this.providers.find(p => p.id === id))
       .filter((p): p is Provider => p !== undefined);
   }
 

@@ -6,6 +6,8 @@ const PROVIDER_META: Record<ProviderId, { label: string; color: string }> = {
   azure: { label: 'Azure', color: '#0078D4' },
   oci: { label: 'OCI', color: '#C74634' },
   vmware: { label: 'VMware', color: '#1B9C2E' },
+  proxmox: { label: 'Proxmox', color: '#E57000' },
+  baremetal: { label: 'Bare Metal', color: '#5A67D8' },
 };
 
 interface Props {
