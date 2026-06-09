@@ -1,6 +1,5 @@
 import { Box, Card, CardActionArea, CardContent, Chip, Typography } from '@mui/material';
-import { Cloud as CloudIcon } from '@mui/icons-material';
-import { ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
+import { Cloud as CloudIcon, ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
 import type { Provider } from '../../../../types';
 
 interface Props {
@@ -15,19 +14,29 @@ export function ProviderCard({ provider, offerCount, onClick }: Props) {
       <CardActionArea onClick={onClick} sx={{ height: '100%', p: 0 }}>
         <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Icon */}
-          <Box
-            sx={{
-              width: 52,
-              height: 52,
-              borderRadius: 2,
-              backgroundColor: `${provider.accentColor}15`,
-              border: `1.5px solid ${provider.accentColor}30`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <CloudIcon sx={{ color: provider.accentColor, fontSize: 28 }} />
+          <Box sx={{ width: 52, height: 52, flexShrink: 0 }}>
+            {provider.logoUrl ? (
+              <img
+                src={provider.logoUrl}
+                alt={provider.shortName}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: `${provider.accentColor}15`,
+                  border: `1.5px solid ${provider.accentColor}30`,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CloudIcon sx={{ color: provider.accentColor, fontSize: 28 }} />
+              </Box>
+            )}
           </Box>
 
           <Box flex={1}>
