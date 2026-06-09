@@ -21,6 +21,7 @@ import { OffersPage } from './components/infrastructure/shared/OffersPage/Offers
 import { OfferDetailPage } from './components/infrastructure/shared/OfferDetailPage/OfferDetailPage';
 import { ProvisioningPage } from './components/infrastructure/shared/ProvisioningPage/ProvisioningPage';
 import { CheckoutReviewPage } from './components/infrastructure/shared/Cart/CheckoutReviewPage';
+import { ProvisioningProgressPage } from './components/infrastructure/shared/Cart/ProvisioningProgressPage';
 import { TemplatesConfigPage } from './components/configuracoes/templates/TemplatesConfigPage';
 import { CloudTemplatesConfigPage } from './components/configuracoes/templates/CloudTemplatesConfigPage';
 import { OnPremiseTemplatesConfigPage } from './components/configuracoes/templates/OnPremiseTemplatesConfigPage';
@@ -75,6 +76,7 @@ export default function App() {
                         <Route path="/on-premise/deployments/:batchId" element={<OnPremiseDeploymentPage />} />
 
                         <Route path="/checkout/review" element={<CheckoutReviewPage />} />
+                        <Route path="/provisioning" element={<ProvisioningProgressPage />} />
 
                         <Route path="/deployments" element={<DeploymentsListPage />} />
                         <Route path="/deployments/:batchId" element={<DeploymentPage />} />

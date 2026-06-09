@@ -1,14 +1,80 @@
-import { Box, Button, Chip, Divider, Paper, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Box, Button, Chip, Dialog, DialogContent, DialogTitle, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   ArrowBack as ArrowBackIcon,
   Cloud as CloudIcon,
   RocketLaunch as RocketLaunchIcon,
+  DataObject as PayloadIcon,
+  Close as CloseIcon,
+  ContentCopy as CopyIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDeploymentHistory } from '../../../context/DeploymentHistoryContext';
 import { ProviderBadge } from '../../infrastructure/shared/ProviderBadge';
+import type { CartItem } from '../../../types';
+
+function buildPayload(item: CartItem) {
+  return {
+    template: `${item.offer.providerId}/${item.offer.id}`,
+    payload: item.parameters,
+  };
+}
+
+function PayloadDialog({ item, onClose }: { item: CartItem | null; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  if (!item) return null;
+
+  const json = JSON.stringify(buildPayload(item), null, 2);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3 } }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <PayloadIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+          <Typography fontWeight={700}>Payload — {item.offer.name}</Typography>
+        </Box>
+        <Box display="flex" gap={0.5}>
+          <Tooltip title={copied ? 'Copiado!' : 'Copiar JSON'}>
+            <IconButton size="small" onClick={handleCopy}>
+              <CopyIcon fontSize="small" sx={{ color: copied ? '#10B981' : 'text.secondary' }} />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 0 }}>
+        <Box
+          component="pre"
+          sx={{
+            bgcolor: '#0F172A',
+            color: '#E2E8F0',
+            borderRadius: 2,
+            p: 2.5,
+            fontSize: '0.8rem',
+            fontFamily: 'monospace',
+            overflowX: 'auto',
+            lineHeight: 1.7,
+            m: 0,
+          }}
+        >
+          {json}
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface Props {
   basePath?: string;
@@ -20,6 +86,7 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
   const { batchId } = useParams<{ batchId: string }>();
   const { batches, getBatch } = useDeploymentHistory();
   const batch = getBatch(batchId ?? '');
+  const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
 
   if (!batch) {
     return (
@@ -173,33 +240,44 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
 
               <Divider sx={{ borderColor: success ? '#9AE6B4' : '#FEB2B2', mb: 1.5 }} />
 
-              <Box display="flex" gap={4} flexWrap="wrap">
-                {result?.requestId && (
+              <Box display="flex" alignItems="flex-end" justifyContent="space-between" gap={2} flexWrap="wrap">
+                <Box display="flex" gap={4} flexWrap="wrap">
+                  {result?.requestId && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled" fontWeight={600} display="block" mb={0.25}>
+                        REQUEST ID
+                      </Typography>
+                      <Typography variant="caption" fontFamily="monospace" color="text.primary">
+                        {result.requestId}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box>
                     <Typography variant="caption" color="text.disabled" fontWeight={600} display="block" mb={0.25}>
-                      REQUEST ID
+                      MENSAGEM
                     </Typography>
-                    <Typography variant="caption" fontFamily="monospace" color="text.primary">
-                      {result.requestId}
+                    <Typography variant="caption" color={success ? 'success.main' : 'error.main'} fontWeight={600}>
+                      {result?.message ?? '—'}
                     </Typography>
                   </Box>
-                )}
-                <Box>
-                  <Typography variant="caption" color="text.disabled" fontWeight={600} display="block" mb={0.25}>
-                    MENSAGEM
-                  </Typography>
-                  <Typography variant="caption" color={success ? 'success.main' : 'error.main'} fontWeight={600}>
-                    {result?.message ?? '—'}
-                  </Typography>
+                  <Box>
+                    <Typography variant="caption" color="text.disabled" fontWeight={600} display="block" mb={0.25}>
+                      TIMESTAMP
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {result?.timestamp ? new Date(result.timestamp).toLocaleString('pt-BR') : '—'}
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.disabled" fontWeight={600} display="block" mb={0.25}>
-                    TIMESTAMP
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {result?.timestamp ? new Date(result.timestamp).toLocaleString('pt-BR') : '—'}
-                  </Typography>
-                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PayloadIcon fontSize="small" />}
+                  onClick={() => setPayloadItem(item)}
+                  sx={{ borderColor: '#E2E8F0', color: 'text.secondary', fontSize: '0.72rem', flexShrink: 0 }}
+                >
+                  Ver payload
+                </Button>
               </Box>
             </Paper>
           );
@@ -218,6 +296,8 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
           Ver histórico
         </Button>
       </Box>
+
+      <PayloadDialog item={payloadItem} onClose={() => setPayloadItem(null)} />
     </Box>
   );
 }

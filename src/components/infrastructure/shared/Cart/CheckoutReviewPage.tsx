@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Box, Button, Card, CardContent, Chip, CircularProgress,
+  Box, Button, Card, CardContent, Chip,
   Divider, Grid, TextField, Typography,
 } from '@mui/material';
 import {
@@ -13,8 +13,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
-import { useDeploymentHistory } from '../../../../context/DeploymentHistoryContext';
-import { useTemplateSource } from '../../../../context/TemplateSourceContext';
 import { CLOUD_PROVIDERS } from '../../../../api/cloudProviders';
 import type { CartItem, ProviderId } from '../../../../types';
 
@@ -227,9 +225,6 @@ function ItemCard({ item, index, disabled, onEdit, onRemove }: ItemCardProps) {
 export function CheckoutReviewPage() {
   const navigate = useNavigate();
   const { items, removeItem } = useCart();
-  const { addBatch } = useDeploymentHistory();
-  const { cloudClient } = useTemplateSource();
-  const [isProvisioning, setIsProvisioning] = useState(false);
   const isEditingRef = useRef(false);
   const [destination, setDestination] = useState<Record<string, string>>(() => {
     if (items.length === 0) return {};
@@ -257,34 +252,8 @@ export function CheckoutReviewPage() {
     });
   };
 
-  const handleConfirm = async () => {
-    const currentItems = [...items];
-    const batchId = crypto.randomUUID();
-    const timestamp = new Date().toISOString();
-    setIsProvisioning(true);
-
-    const responses: Awaited<ReturnType<typeof cloudClient.provision>>[] = [];
-    for (const item of currentItems) {
-      responses.push(await cloudClient.provision({
-        offerId: item.offer.id,
-        providerId: item.offer.providerId,
-        parameters: { ...item.parameters, ...destination },
-      }));
-    }
-
-    currentItems.forEach((item, i) => {
-      if (responses[i].status === 'accepted') removeItem(item.id);
-    });
-
-    addBatch({
-      batchId,
-      timestamp,
-      snapshot: currentItems,
-      results: currentItems.map((item, i) => ({ itemId: item.id, response: responses[i] })),
-    });
-
-    setIsProvisioning(false);
-    navigate(`/deployments/${batchId}`);
+  const handleConfirm = () => {
+    navigate('/provisioning', { state: { items, destination } });
   };
 
   if (items.length === 0) return null;
@@ -331,7 +300,7 @@ export function CheckoutReviewPage() {
             <Box display="flex" flexDirection="column" gap={2}>
               <DestinationSection items={items} values={destination} onChange={handleDestinationChange} />
               {items.map((item, i) => (
-                <ItemCard key={item.id} item={item} index={i} disabled={isProvisioning} onEdit={handleEdit} onRemove={removeItem} />
+                <ItemCard key={item.id} item={item} index={i} disabled={false} onEdit={handleEdit} onRemove={removeItem} />
               ))}
             </Box>
           </Grid>
@@ -387,15 +356,11 @@ export function CheckoutReviewPage() {
                   variant="contained"
                   fullWidth
                   size="large"
-                  disabled={isProvisioning}
                   onClick={handleConfirm}
-                  startIcon={isProvisioning
-                    ? <CircularProgress size={16} color="inherit" />
-                    : <CheckCircleIcon />
-                  }
+                  startIcon={<CheckCircleIcon />}
                   sx={{ borderRadius: 2, fontWeight: 700, py: 1.5, mb: 1.5 }}
                 >
-                  {isProvisioning ? 'Provisionando...' : 'Provisionar'}
+                  Provisionar
                 </Button>
 
                 <Typography variant="caption" color="text.secondary" textAlign="center" display="block" mb={1.5}>
@@ -405,7 +370,6 @@ export function CheckoutReviewPage() {
                 <Button
                   variant="text"
                   fullWidth
-                  disabled={isProvisioning}
                   onClick={() => navigate(-1)}
                   sx={{ color: 'text.secondary' }}
                 >
