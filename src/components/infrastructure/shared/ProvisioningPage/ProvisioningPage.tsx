@@ -43,7 +43,7 @@ export function ProvisioningPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = location as { state: { editValues?: Record<string, string> } | null };
+  const { state } = location as { state: { editValues?: Record<string, string>; returnTo?: string } | null };
   const { addItem, activeProvider, clearCart, items } = useActiveCart();
   const { basePath, marketplaceName } = useMarketplaceClient();
   const { offer, loading } = useOfferDetail(offerId ?? '');
@@ -128,7 +128,7 @@ export function ProvisioningPage() {
 
   const commitAdd = (params: Record<string, string | number | boolean>) => {
     addItem(offer, params);
-    navigate(`${basePath}/${providerId}`);
+    navigate(state?.returnTo ?? `${basePath}/${providerId}`);
   };
 
   const handleSubmit = () => {
