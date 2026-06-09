@@ -105,22 +105,21 @@ export function Sidebar() {
         }}
       >
         <Box
+          component="img"
+          src="/b3-azul.png"
+          alt="B3"
           sx={{
-            width: 32,
-            height: 32,
+            width: 48,
+            height: 48,
             borderRadius: 1.5,
-            background: 'linear-gradient(135deg, #003087 0%, #0050B3 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            objectFit: 'contain',
+            imageRendering: 'auto',
             flexShrink: 0,
           }}
-        >
-          <CloudIcon sx={{ color: '#fff', fontSize: 18 }} />
-        </Box>
+        />
         <Box textAlign="left">
-          <Typography variant="body2" fontWeight={800} color="#003087" lineHeight={1}>Cloud</Typography>
-          <Typography variant="caption" color="text.secondary" fontWeight={500}>Marketplace</Typography>
+          <Typography variant="body2" fontWeight={800} color="#003087" lineHeight={1} noWrap>Fusion Hybrid Platform</Typography>
+          <Typography variant="caption" color="text.secondary" fontWeight={500}>Cloud & On-premise</Typography>
         </Box>
       </ButtonBase>
 
