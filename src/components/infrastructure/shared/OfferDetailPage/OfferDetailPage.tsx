@@ -26,7 +26,7 @@ export function OfferDetailPage() {
   if (!offer) return null;
 
   return (
-    <Box p={4} maxWidth={860}>
+    <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100%', px: { xs: 2, md: 5 }, py: 4 }}>
       <Breadcrumbs sx={{ mb: 3 }}>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
           onClick={() => navigate(basePath)}>
@@ -38,6 +38,8 @@ export function OfferDetailPage() {
         </Link>
         <Typography variant="body2" color="text.primary" fontWeight={600}>{offer.name}</Typography>
       </Breadcrumbs>
+
+      <Box sx={{ maxWidth: 860, mx: 'auto' }}>
 
       {/* Header */}
       <Paper variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -92,6 +94,7 @@ export function OfferDetailPage() {
       <Box>
         <Typography variant="h6" fontWeight={700} mb={1.5}>Parâmetros de configuração</Typography>
         <ParameterList parameters={offer.parameters} />
+      </Box>
       </Box>
     </Box>
   );

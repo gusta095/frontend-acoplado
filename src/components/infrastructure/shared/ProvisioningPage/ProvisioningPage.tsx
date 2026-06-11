@@ -232,7 +232,7 @@ export function ProvisioningPage() {
   const isLastStep = !isWizard || currentStep === steps.length - 1;
 
   return (
-    <Box p={4} maxWidth={680}>
+    <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100%', px: { xs: 2, md: 5 }, py: 4 }}>
       <Breadcrumbs sx={{ mb: 3 }}>
         <Link underline="hover" color="text.secondary" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}
           onClick={() => navigate(basePath)}>
@@ -249,6 +249,7 @@ export function ProvisioningPage() {
         <Typography variant="body2" color="text.primary" fontWeight={600}>Configurar</Typography>
       </Breadcrumbs>
 
+      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
       <Box mb={3}>
         <Typography variant="h5" fontWeight={800} color="text.primary" gutterBottom>
           Configurar: {offer.name}
@@ -280,7 +281,7 @@ export function ProvisioningPage() {
         </Box>
       )}
 
-      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 }, borderRadius: 3, mb: 3, bgcolor: '#fff' }}>
         {isWizard && activeStepDef?.description && (
           <Typography variant="body2" color="text.secondary" mb={2}>
             {activeStepDef.description}
@@ -364,6 +365,7 @@ export function ProvisioningPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 }
