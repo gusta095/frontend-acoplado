@@ -1,10 +1,10 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
-import type { CartItem, Offer } from '../types';
+import type { CartItem, Offer, ParameterValue } from '../types';
 
 interface OnPremiseCartContextValue {
   items: CartItem[];
   activeProvider: string | null;
-  addItem: (offer: Offer, parameters: Record<string, string | number | boolean>) => void;
+  addItem: (offer: Offer, parameters: Record<string, ParameterValue>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
 }
@@ -14,7 +14,7 @@ const OnPremiseCartContext = createContext<OnPremiseCartContextValue | null>(nul
 export function OnPremiseCartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  const addItem = useCallback((offer: Offer, parameters: Record<string, string | number | boolean>) => {
+  const addItem = useCallback((offer: Offer, parameters: Record<string, ParameterValue>) => {
     const item: CartItem = {
       id: crypto.randomUUID(),
       offer,

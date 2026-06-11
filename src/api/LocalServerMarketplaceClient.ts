@@ -1,7 +1,8 @@
 import { load as parseYaml } from 'js-yaml';
 import type { MarketplaceApi } from './MarketplaceApi';
-import type { Offer, OfferCategory, OfferParameter, ParameterType, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
+import type { Offer, OfferCategory, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './GitHubMarketplaceClient';
+import { templateToOffer, type TemplateYaml } from './templateParser';
 
 async function scanTemplates(root: string): Promise<string[]> {
   const res = await fetch(`/local-templates?action=scan&path=${encodeURIComponent(root)}`);
@@ -14,40 +15,6 @@ async function readFile(absPath: string): Promise<string | null> {
   if (!res.ok) return null;
   const data = await res.json() as { content: string };
   return data.content;
-}
-
-function mapParameters(schema: {
-  required?: string[];
-  properties: Record<string, {
-    type?: string; title?: string; description?: string; default?: unknown;
-    enum?: string[]; pattern?: string; minLength?: number; maxLength?: number;
-    minimum?: number; maximum?: number;
-  }>;
-}): OfferParameter[] {
-  const required = new Set(schema.required ?? []);
-  return Object.entries(schema.properties).map(([key, prop]) => {
-    let type: ParameterType;
-    if (prop.enum?.length) type = 'select';
-    else if (prop.type === 'integer' || prop.type === 'number') type = 'number';
-    else if (prop.type === 'boolean') type = 'boolean';
-    else type = 'string';
-
-    const param: OfferParameter = {
-      key,
-      label: prop.title ?? key,
-      type,
-      required: required.has(key),
-      description: prop.description,
-      defaultValue: prop.default !== undefined ? String(prop.default) : undefined,
-      options: prop.enum,
-    };
-
-    if (prop.pattern || prop.minLength !== undefined || prop.maxLength !== undefined || prop.minimum !== undefined || prop.maximum !== undefined) {
-      param.validation = { pattern: prop.pattern, minLength: prop.minLength, maxLength: prop.maxLength, min: prop.minimum, max: prop.maximum };
-    }
-
-    return param;
-  });
 }
 
 export class LocalServerMarketplaceClient implements MarketplaceApi {
@@ -64,23 +31,9 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     const content = await readFile(absPath);
     if (!content) return null;
     try {
-      const tpl = parseYaml(content) as {
-        title: string; description: string; provider: string;
-        category?: OfferCategory; tags?: string[];
-        schema: { required?: string[]; properties: Record<string, unknown> };
-      };
-      // slug = name of the folder containing template.yaml
+      const tpl = parseYaml(content) as TemplateYaml;
       const slug = absPath.split('/').at(-2)!;
-      return {
-        id: slug,
-        providerId: tpl.provider as ProviderId,
-        name: tpl.title,
-        shortDescription: tpl.description,
-        longDescription: tpl.description,
-        category: tpl.category ?? 'other',
-        tags: tpl.tags,
-        parameters: mapParameters(tpl.schema as Parameters<typeof mapParameters>[0]),
-      };
+      return templateToOffer(slug, tpl);
     } catch {
       return null;
     }

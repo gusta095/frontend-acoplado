@@ -1,7 +1,8 @@
 import { load as parseYaml } from 'js-yaml';
 import type { MarketplaceApi } from './MarketplaceApi';
-import type { Offer, OfferCategory, OfferParameter, ParameterType, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
+import type { Offer, OfferCategory, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './cloudProviders';
+import { templateToOffer, type TemplateYaml } from './templateParser';
 
 export { CLOUD_PROVIDERS };
 
@@ -15,30 +16,6 @@ export const DEFAULT_GITHUB_CONFIG: GitHubClientConfig = {
   owner: '',
   repo: '',
   branch: 'main',
-};
-
-interface TemplateYaml {
-  name: string;
-  title: string;
-  description: string;
-  provider: string;
-  category?: OfferCategory;
-  tags?: string[];
-  schema: {
-    required?: string[];
-    properties: Record<string, {
-      type?: string;
-      title?: string;
-      description?: string;
-      default?: unknown;
-      enum?: string[];
-      pattern?: string;
-      minLength?: number;
-      maxLength?: number;
-      minimum?: number;
-      maximum?: number;
-    }>;
-  };
 }
 
 function decodeBase64(content: string): string {
@@ -46,57 +23,6 @@ function decodeBase64(content: string): string {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new TextDecoder('utf-8').decode(bytes);
-}
-
-function mapParameters(schema: TemplateYaml['schema']): OfferParameter[] {
-  const required = new Set(schema.required ?? []);
-  return Object.entries(schema.properties).map(([key, prop]) => {
-    let type: ParameterType;
-    if (prop.enum?.length) {
-      type = 'select';
-    } else if (prop.type === 'integer' || prop.type === 'number') {
-      type = 'number';
-    } else if (prop.type === 'boolean') {
-      type = 'boolean';
-    } else {
-      type = 'string';
-    }
-
-    const param: OfferParameter = {
-      key,
-      label: prop.title ?? key,
-      type,
-      required: required.has(key),
-      description: prop.description,
-      defaultValue: prop.default !== undefined ? String(prop.default) : undefined,
-      options: prop.enum,
-    };
-
-    if (prop.pattern || prop.minLength !== undefined || prop.maxLength !== undefined || prop.minimum !== undefined || prop.maximum !== undefined) {
-      param.validation = {
-        pattern: prop.pattern,
-        minLength: prop.minLength,
-        maxLength: prop.maxLength,
-        min: prop.minimum,
-        max: prop.maximum,
-      };
-    }
-
-    return param;
-  });
-}
-
-function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
-  return {
-    id: slug,
-    providerId: tpl.provider as ProviderId,
-    name: tpl.title,
-    shortDescription: tpl.description,
-    longDescription: tpl.description,
-    category: tpl.category ?? 'other',
-    tags: tpl.tags,
-    parameters: mapParameters(tpl.schema),
-  };
 }
 
 export class GitHubMarketplaceClient implements MarketplaceApi {

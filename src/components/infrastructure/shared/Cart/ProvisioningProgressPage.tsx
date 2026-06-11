@@ -87,7 +87,7 @@ interface StepRowProps {
   prevDone: boolean;
 }
 
-function StepRow({ step, index, isLast, prevDone }: StepRowProps) {
+function StepRow({ step, index, isLast }: StepRowProps) {
   const provider = getProvider(step.item.offer.providerId);
   const isRunning  = step.status === 'running';
   const isSuccess  = step.status === 'success';
@@ -134,7 +134,6 @@ function StepRow({ step, index, isLast, prevDone }: StepRowProps) {
       <Box
         sx={{
           flex: 1,
-          mb: isLast ? 0 : 0.5,
           ml: 1.5,
           mt: '10px',
           mb: isLast ? 2 : 1.5,
