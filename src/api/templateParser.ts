@@ -1,5 +1,6 @@
 import type {
   ConditionalGroup,
+  FieldGroup,
   Offer,
   OfferCategory,
   OfferParameter,
@@ -37,6 +38,7 @@ type SchemaDef = {
   required?: string[];
   properties: Record<string, PropDef>;
   dependencies?: Record<string, { oneOf: BranchDef[] }>;
+  groups?: Array<{ title: string; description?: string; fields: string[] }>;
 };
 
 export interface TemplateYaml {
@@ -138,13 +140,14 @@ function parseDependencies(
   return groups;
 }
 
-function parseSchema(schema: SchemaDef): { parameters: OfferParameter[]; conditionals: ConditionalGroup[] } {
+function parseSchema(schema: SchemaDef): { parameters: OfferParameter[]; conditionals: ConditionalGroup[]; groups?: FieldGroup[] } {
   const required = new Set(schema.required ?? []);
   const parameters = Object.entries(schema.properties).map(([key, prop]) =>
     mapSingleParameter(key, prop, required)
   );
   const conditionals = schema.dependencies ? parseDependencies(schema.dependencies) : [];
-  return { parameters, conditionals };
+  const groups = schema.groups?.map(g => ({ title: g.title, description: g.description, fields: g.fields }));
+  return { parameters, conditionals, groups };
 }
 
 export function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
@@ -153,15 +156,15 @@ export function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
 
   if (tpl.steps?.length) {
     steps = tpl.steps.map(step => {
-      const { parameters: stepParams, conditionals } = parseSchema(step.schema);
-      return { title: step.title, description: step.description, parameters: stepParams, conditionals };
+      const { parameters: stepParams, conditionals, groups } = parseSchema(step.schema);
+      return { title: step.title, description: step.description, parameters: stepParams, conditionals, groups };
     });
     parameters = steps.flatMap(s => s.parameters);
   } else if (tpl.schema) {
-    const { parameters: p, conditionals } = parseSchema(tpl.schema);
+    const { parameters: p, conditionals, groups } = parseSchema(tpl.schema);
     parameters = p;
-    if (conditionals.length > 0) {
-      steps = [{ title: '', description: undefined, parameters: p, conditionals }];
+    if (conditionals.length > 0 || groups?.length) {
+      steps = [{ title: '', description: undefined, parameters: p, conditionals, groups }];
     }
   }
 

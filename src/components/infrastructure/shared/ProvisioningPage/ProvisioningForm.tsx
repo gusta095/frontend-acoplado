@@ -1,8 +1,8 @@
 import {
-  Autocomplete, Box, Checkbox, Chip, FormControl, FormControlLabel, FormHelperText,
+  Autocomplete, Box, Checkbox, Chip, Divider, FormControl, FormControlLabel, FormHelperText,
   InputLabel, MenuItem, OutlinedInput, Radio, RadioGroup, Select, TextField, Typography
 } from '@mui/material';
-import type { ConditionalGroup, OfferParameter } from '../../../../types';
+import type { ConditionalGroup, FieldGroup, OfferParameter } from '../../../../types';
 
 interface FormCallbacks {
   onChange: (key: string, value: string) => void;
@@ -12,6 +12,7 @@ interface FormCallbacks {
 interface Props extends FormCallbacks {
   parameters: OfferParameter[];
   conditionals?: ConditionalGroup[];
+  groups?: FieldGroup[];
   values: Record<string, string>;
   errors: Record<string, string>;
 }
@@ -229,10 +230,80 @@ function renderParams(
   });
 }
 
-export function ProvisioningForm({ parameters, conditionals = [], values, errors, onChange, onBlur }: Props) {
+function GroupSection({
+  group,
+  parameters,
+  conditionals,
+  values,
+  errors,
+  callbacks,
+}: {
+  group: FieldGroup;
+  parameters: OfferParameter[];
+  conditionals: ConditionalGroup[];
+  values: Record<string, string>;
+  errors: Record<string, string>;
+  callbacks: FormCallbacks;
+}) {
+  const paramByKey = new Map(parameters.map(p => [p.key, p]));
+  const groupParams = group.fields
+    .map(f => paramByKey.get(f))
+    .filter((p): p is OfferParameter => p !== undefined);
+
+  if (groupParams.length === 0) return null;
+
+  return (
+    <Box>
+      <Box mb={1.5}>
+        <Typography variant="subtitle2" fontWeight={700} color="text.primary">
+          {group.title}
+        </Typography>
+        {group.description && (
+          <Typography variant="caption" color="text.secondary">
+            {group.description}
+          </Typography>
+        )}
+        <Divider sx={{ mt: 0.75 }} />
+      </Box>
+      <Box display="flex" flexDirection="column" gap={2.5}>
+        {renderParams(groupParams, conditionals, values, errors, callbacks)}
+      </Box>
+    </Box>
+  );
+}
+
+export function ProvisioningForm({ parameters, conditionals = [], groups, values, errors, onChange, onBlur }: Props) {
+  const callbacks: FormCallbacks = { onChange, onBlur };
+
+  if (groups?.length) {
+    const groupedKeys = new Set(groups.flatMap(g => g.fields));
+    const ungrouped = parameters.filter(p => !groupedKeys.has(p.key));
+
+    return (
+      <Box display="flex" flexDirection="column" gap={3}>
+        {ungrouped.length > 0 && (
+          <Box display="flex" flexDirection="column" gap={2.5}>
+            {renderParams(ungrouped, conditionals, values, errors, callbacks)}
+          </Box>
+        )}
+        {groups.map(group => (
+          <GroupSection
+            key={group.title}
+            group={group}
+            parameters={parameters}
+            conditionals={conditionals}
+            values={values}
+            errors={errors}
+            callbacks={callbacks}
+          />
+        ))}
+      </Box>
+    );
+  }
+
   return (
     <Box display="flex" flexDirection="column" gap={2.5}>
-      {renderParams(parameters, conditionals, values, errors, { onChange, onBlur })}
+      {renderParams(parameters, conditionals, values, errors, callbacks)}
     </Box>
   );
 }

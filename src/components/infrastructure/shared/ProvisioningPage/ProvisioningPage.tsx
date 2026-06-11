@@ -289,6 +289,7 @@ export function ProvisioningPage() {
         <ProvisioningForm
           parameters={activeStepDef?.parameters ?? offer.parameters}
           conditionals={activeStepDef?.conditionals}
+          groups={activeStepDef?.groups}
           values={{ ...getEffectiveValues(), ...values }}
           errors={errors}
           onChange={handleChange}

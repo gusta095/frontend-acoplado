@@ -43,11 +43,18 @@ export interface ConditionalGroup {
   conditionals: ConditionalGroup[];
 }
 
+export interface FieldGroup {
+  title: string;
+  description?: string;
+  fields: string[];
+}
+
 export interface OfferStep {
   title: string;
   description?: string;
   parameters: OfferParameter[];
   conditionals: ConditionalGroup[];
+  groups?: FieldGroup[];
 }
 
 export interface Offer {
