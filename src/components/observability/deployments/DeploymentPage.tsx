@@ -15,18 +15,19 @@ import { useDeploymentHistory } from '../../../context/DeploymentHistoryContext'
 import { ProviderBadge } from '../../infrastructure/shared/ProviderBadge';
 import type { CartItem } from '../../../types';
 
-function buildPayload(item: CartItem) {
+function buildFinalPayload(items: CartItem[]) {
   return {
-    template: `${item.offer.providerId}/${item.offer.id}`,
-    payload: item.parameters,
+    resources: items.map(item => ({
+      template: `${item.offer.providerId}/${item.offer.id}`,
+      payload: item.parameters,
+    })),
   };
 }
 
-function PayloadDialog({ item, onClose }: { item: CartItem | null; onClose: () => void }) {
+function PayloadDialog({ items, open, onClose }: { items: CartItem[]; open: boolean; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  if (!item) return null;
 
-  const json = JSON.stringify(buildPayload(item), null, 2);
+  const json = JSON.stringify(buildFinalPayload(items), null, 2);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(json);
@@ -35,13 +36,16 @@ function PayloadDialog({ item, onClose }: { item: CartItem | null; onClose: () =
   };
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}
-    >
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
         <Box display="flex" alignItems="center" gap={1}>
           <PayloadIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-          <Typography fontWeight={700}>Payload — {item.offer.name}</Typography>
+          <Box>
+            <Typography fontWeight={700}>Payload final</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {items.length} {items.length === 1 ? 'recurso' : 'recursos'} · enviado em uma única requisição
+            </Typography>
+          </Box>
         </Box>
         <Box display="flex" gap={0.5}>
           <Tooltip title={copied ? 'Copiado!' : 'Copiar JSON'}>
@@ -67,6 +71,8 @@ function PayloadDialog({ item, onClose }: { item: CartItem | null; onClose: () =
             overflowX: 'auto',
             lineHeight: 1.7,
             m: 0,
+            maxHeight: '60vh',
+            overflowY: 'auto',
           }}
         >
           {json}
@@ -86,7 +92,7 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
   const { batchId } = useParams<{ batchId: string }>();
   const { batches, getBatch } = useDeploymentHistory();
   const batch = getBatch(batchId ?? '');
-  const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
+  const [payloadOpen, setPayloadOpen] = useState(false);
 
   if (!batch) {
     return (
@@ -273,7 +279,7 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
                   size="small"
                   variant="outlined"
                   startIcon={<PayloadIcon fontSize="small" />}
-                  onClick={() => setPayloadItem(item)}
+                  onClick={() => setPayloadOpen(true)}
                   sx={{ borderColor: '#E2E8F0', color: 'text.secondary', fontSize: '0.72rem', flexShrink: 0 }}
                 >
                   Ver payload
@@ -297,7 +303,7 @@ export function DeploymentPage({ basePath = '/deployments', marketplacePath = '/
         </Button>
       </Box>
 
-      <PayloadDialog item={payloadItem} onClose={() => setPayloadItem(null)} />
+      <PayloadDialog items={snapshot} open={payloadOpen} onClose={() => setPayloadOpen(false)} />
     </Box>
   );
 }

@@ -97,8 +97,8 @@ export function Sidebar() {
         onClick={() => navigate('/')}
         sx={{
           px: 2.5, py: 2.5,
-          display: 'flex', alignItems: 'center', gap: 1,
-          justifyContent: 'flex-start',
+          display: 'flex', alignItems: 'center', gap: 1.5,
+          justifyContent: 'center',
           borderRadius: 1,
           flexShrink: 0,
           '&:hover': { backgroundColor: 'rgba(0,48,135,0.05)' },
@@ -118,7 +118,7 @@ export function Sidebar() {
           }}
         />
         <Box textAlign="left">
-          <Typography variant="body2" fontWeight={800} color="#003087" lineHeight={1} noWrap>Fusion Hybrid Platform</Typography>
+          <Typography variant="body2" fontWeight={800} color="#003087" lineHeight={1} noWrap>Sentinel Fusion Platform</Typography>
           <Typography variant="caption" color="text.secondary" fontWeight={500}>Cloud & On-premise</Typography>
         </Box>
       </ButtonBase>
