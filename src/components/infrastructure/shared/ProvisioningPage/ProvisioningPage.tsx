@@ -300,13 +300,15 @@ export function ProvisioningPage() {
       <Divider sx={{ mb: 3 }} />
 
       <Box display="flex" gap={2}>
-        <Button
-          variant="outlined"
-          onClick={handleBack}
-          sx={{ borderColor: '#E2E8F0', color: 'text.secondary' }}
-        >
-          Voltar
-        </Button>
+        {!state?.editValues && (
+          <Button
+            variant="outlined"
+            onClick={handleBack}
+            sx={{ borderColor: '#E2E8F0', color: 'text.secondary' }}
+          >
+            Voltar
+          </Button>
+        )}
 
         {!isLastStep && (
           <Button

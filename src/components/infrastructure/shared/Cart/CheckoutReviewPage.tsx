@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Box, Button, Card, CardContent, Chip,
-  Divider, Grid, TextField, Typography,
+  Dialog, DialogContent, DialogTitle,
+  Divider, Grid, IconButton, TextField, Tooltip, Typography,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -10,6 +11,9 @@ import {
   CheckCircle as CheckCircleIcon,
   EditOutlined as EditIcon,
   DeleteOutline as DeleteIcon,
+  DataObject as PayloadIcon,
+  Close as CloseIcon,
+  ContentCopy as CopyIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
@@ -31,6 +35,133 @@ const fadeIn = `
 
 function getProvider(providerId: ProviderId) {
   return CLOUD_PROVIDERS.find(p => p.id === providerId);
+}
+
+function buildPayload(item: CartItem, destination: Record<string, string>) {
+  return {
+    template: `${item.offer.providerId}/${item.offer.id}`,
+    payload: { ...item.parameters, ...destination },
+  };
+}
+
+function buildFinalPayload(items: CartItem[], destination: Record<string, string>) {
+  return {
+    resources: items.map(item => buildPayload(item, destination)),
+  };
+}
+
+function FinalPayloadDialog({ items, destination, open, onClose }: {
+  items: CartItem[];
+  destination: Record<string, string>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const json = JSON.stringify(buildFinalPayload(items, destination), null, 2);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <PayloadIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+          <Box>
+            <Typography fontWeight={700}>Payload final</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {items.length} {items.length === 1 ? 'recurso' : 'recursos'} · enviado em uma única requisição
+            </Typography>
+          </Box>
+        </Box>
+        <Box display="flex" gap={0.5}>
+          <Tooltip title={copied ? 'Copiado!' : 'Copiar JSON'}>
+            <IconButton size="small" onClick={handleCopy}>
+              <CopyIcon fontSize="small" sx={{ color: copied ? '#10B981' : 'text.secondary' }} />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 0 }}>
+        <Box
+          component="pre"
+          sx={{
+            bgcolor: '#0F172A',
+            color: '#E2E8F0',
+            borderRadius: 2,
+            p: 2.5,
+            fontSize: '0.8rem',
+            fontFamily: 'monospace',
+            overflowX: 'auto',
+            lineHeight: 1.7,
+            m: 0,
+            maxHeight: '60vh',
+            overflowY: 'auto',
+          }}
+        >
+          {json}
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PayloadDialog({ item, destination, onClose }: { item: CartItem | null; destination: Record<string, string>; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  if (!item) return null;
+
+  const json = JSON.stringify(buildPayload(item, destination), null, 2);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <PayloadIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+          <Typography fontWeight={700}>Payload — {item.offer.name}</Typography>
+        </Box>
+        <Box display="flex" gap={0.5}>
+          <Tooltip title={copied ? 'Copiado!' : 'Copiar JSON'}>
+            <IconButton size="small" onClick={handleCopy}>
+              <CopyIcon fontSize="small" sx={{ color: copied ? '#10B981' : 'text.secondary' }} />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 0 }}>
+        <Box
+          component="pre"
+          sx={{
+            bgcolor: '#0F172A',
+            color: '#E2E8F0',
+            borderRadius: 2,
+            p: 2.5,
+            fontSize: '0.8rem',
+            fontFamily: 'monospace',
+            overflowX: 'auto',
+            lineHeight: 1.7,
+            m: 0,
+          }}
+        >
+          {json}
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function groupByOffer(items: CartItem[]) {
@@ -124,9 +255,10 @@ interface ItemCardProps {
   disabled: boolean;
   onEdit: (item: CartItem) => void;
   onRemove: (id: string) => void;
+  onViewPayload: (item: CartItem) => void;
 }
 
-function ItemCard({ item, index, disabled, onEdit, onRemove }: ItemCardProps) {
+function ItemCard({ item, index, disabled, onEdit, onRemove, onViewPayload }: ItemCardProps) {
   const provider = getProvider(item.offer.providerId);
   const destinationKeys = new Set((PROVIDER_FIELDS[item.offer.providerId] ?? []).map(f => f.key));
   const params = Object.entries(item.parameters).filter(([k]) => !destinationKeys.has(k));
@@ -144,39 +276,23 @@ function ItemCard({ item, index, disabled, onEdit, onRemove }: ItemCardProps) {
       }}
     >
       <CardContent sx={{ p: 3 }}>
-        <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={params.length > 0 ? 2 : 0}>
-          <Box display="flex" alignItems="center" gap={1.5}>
-            {provider?.logoUrl && (
-              <Box
-                component="img"
-                src={provider.logoUrl}
-                alt={provider.shortName}
-                sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0, display: 'block' }}
-              />
-            )}
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700} color="text.primary" lineHeight={1.2}>
-                {item.offer.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>
-                {item.offer.shortDescription}
-              </Typography>
-            </Box>
-          </Box>
-          {provider && (
-            <Chip
-              label={provider.shortName}
-              size="small"
-              sx={{
-                bgcolor: `${provider.accentColor}18`,
-                color: provider.accentColor,
-                fontWeight: 700,
-                fontSize: '0.68rem',
-                border: `1px solid ${provider.accentColor}35`,
-                flexShrink: 0,
-              }}
+        <Box display="flex" alignItems="center" gap={1.5} mb={params.length > 0 ? 2 : 0}>
+          {provider?.logoUrl && (
+            <Box
+              component="img"
+              src={provider.logoUrl}
+              alt={provider.shortName}
+              sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0, display: 'block' }}
             />
           )}
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700} color="text.primary" lineHeight={1.2}>
+              {item.offer.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>
+              {item.offer.shortDescription}
+            </Typography>
+          </Box>
         </Box>
 
         {params.length > 0 && (
@@ -196,6 +312,16 @@ function ItemCard({ item, index, disabled, onEdit, onRemove }: ItemCardProps) {
         )}
 
         <Box display="flex" justifyContent="flex-end" gap={1} mt={params.length === 0 ? 2 : 0}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<PayloadIcon fontSize="small" />}
+            disabled={disabled}
+            onClick={() => onViewPayload(item)}
+            sx={{ borderColor: '#E2E8F0', color: 'text.secondary', fontSize: '0.75rem' }}
+          >
+            Ver payload
+          </Button>
           <Button
             size="small"
             variant="outlined"
@@ -226,6 +352,8 @@ export function CheckoutReviewPage() {
   const navigate = useNavigate();
   const { items, removeItem } = useCart();
   const isEditingRef = useRef(false);
+  const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
+  const [finalPayloadOpen, setFinalPayloadOpen] = useState(false);
   const [destination, setDestination] = useState<Record<string, string>>(() => {
     if (items.length === 0) return {};
     const fields = PROVIDER_FIELDS[items[0].offer.providerId] ?? [];
@@ -260,6 +388,8 @@ export function CheckoutReviewPage() {
 
   return (
     <>
+      <PayloadDialog item={payloadItem} destination={destination} onClose={() => setPayloadItem(null)} />
+      <FinalPayloadDialog items={items} destination={destination} open={finalPayloadOpen} onClose={() => setFinalPayloadOpen(false)} />
       <style>{fadeIn}</style>
       <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100%', px: { xs: 2, md: 5 }, py: 4 }}>
 
@@ -267,10 +397,10 @@ export function CheckoutReviewPage() {
         <Box mb={4}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(`/cloud-marketplace/${items[0]?.offer.providerId ?? ''}`)}
             sx={{ color: 'text.secondary', mb: 2, pl: 0, '&:hover': { bgcolor: 'transparent', color: 'primary.main' } }}
           >
-            Voltar ao carrinho
+            Adicionar mais recursos
           </Button>
 
           <Box display="flex" alignItems="center" gap={1.5}>
@@ -300,7 +430,7 @@ export function CheckoutReviewPage() {
             <Box display="flex" flexDirection="column" gap={2}>
               <DestinationSection items={items} values={destination} onChange={handleDestinationChange} />
               {items.map((item, i) => (
-                <ItemCard key={item.id} item={item} index={i} disabled={false} onEdit={handleEdit} onRemove={removeItem} />
+                <ItemCard key={item.id} item={item} index={i} disabled={false} onEdit={handleEdit} onRemove={removeItem} onViewPayload={setPayloadItem} />
               ))}
             </Box>
           </Grid>
@@ -329,10 +459,6 @@ export function CheckoutReviewPage() {
                     return (
                       <Box key={name} display="flex" alignItems="center" justifyContent="space-between" gap={1}>
                         <Box display="flex" alignItems="center" gap={1} minWidth={0}>
-                          {prov?.logoUrl && (
-                            <Box component="img" src={prov.logoUrl} alt={prov.shortName}
-                              sx={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
-                          )}
                           <Typography variant="body2" color="text.secondary" noWrap>{name}</Typography>
                         </Box>
                         <Typography variant="body2" fontWeight={600} color="text.primary" flexShrink={0}>
@@ -368,12 +494,25 @@ export function CheckoutReviewPage() {
                 </Typography>
 
                 <Button
+                  variant="outlined"
+                  fullWidth
+                  size="large"
+                  onClick={() => navigate(`/cloud-marketplace/${items[0]?.offer.providerId ?? ''}`)}
+                  sx={{ borderRadius: 2, fontWeight: 700, py: 1.5, borderColor: '#003087', color: '#003087', mb: 1.5 }}
+                >
+                  Adicionar mais recursos
+                </Button>
+
+                <Divider sx={{ borderColor: '#E2ECF6', mb: 1.5 }} />
+
+                <Button
                   variant="text"
                   fullWidth
-                  onClick={() => navigate(-1)}
-                  sx={{ color: 'text.secondary' }}
+                  startIcon={<PayloadIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => setFinalPayloadOpen(true)}
+                  sx={{ color: 'text.secondary', fontSize: '0.8rem', fontWeight: 600, py: 0.75 }}
                 >
-                  Voltar
+                  Ver payload final
                 </Button>
               </CardContent>
             </Card>
