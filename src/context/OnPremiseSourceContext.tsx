@@ -1,3 +1,4 @@
+// @refresh reset
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { MarketplaceApi } from '../api/MarketplaceApi';
 import { GitHubMarketplaceClient } from '../api/GitHubMarketplaceClient';
