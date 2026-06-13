@@ -2,7 +2,7 @@ import {
   Box, Breadcrumbs, Button, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, Divider, Link, Paper, Step, StepLabel, Stepper, Typography,
 } from '@mui/material';
-import { AddShoppingCart as AddShoppingCartIcon, Warning as WarningIcon } from '@mui/icons-material';
+import { AddShoppingCart as AddShoppingCartIcon, Save as SaveIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useActiveCart } from '../../../../hooks/useActiveCart';
@@ -81,8 +81,8 @@ export function ProvisioningPage() {
   const { providerId, offerId } = useParams<{ providerId: string; offerId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = location as { state: { editValues?: Record<string, string>; returnTo?: string } | null };
-  const { addItem, activeProvider, clearCart, items } = useActiveCart();
+  const { state } = location as { state: { editValues?: Record<string, string>; editItemId?: string; returnTo?: string } | null };
+  const { addItem, removeItem, activeProvider, clearCart, items } = useActiveCart();
   const { basePath, marketplaceName } = useMarketplaceClient();
   const { offer, loading } = useOfferDetail(offerId ?? '');
 
@@ -205,6 +205,7 @@ export function ProvisioningPage() {
   };
 
   const commitAdd = (params: Record<string, string | number | boolean | string[]>) => {
+    if (state?.editItemId) removeItem(state.editItemId);
     addItem(offer, params);
     navigate(state?.returnTo ?? `${basePath}/${providerId}`);
   };
@@ -325,11 +326,11 @@ export function ProvisioningPage() {
         {isLastStep && (
           <Button
             variant="contained"
-            startIcon={<AddShoppingCartIcon />}
+            startIcon={state?.editItemId ? <SaveIcon /> : <AddShoppingCartIcon />}
             onClick={handleSubmit}
             disabled={!isCurrentStepValid()}
           >
-            Adicionar ao Carrinho
+            {state?.editItemId ? 'Salvar' : 'Adicionar ao Carrinho'}
           </Button>
         )}
       </Box>

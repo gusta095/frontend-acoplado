@@ -16,14 +16,13 @@ export function CartDrawer({ open, onClose }: Props) {
   const { items, removeItem } = useCart();
 
   const handleEdit = (item: CartItem) => {
-    removeItem(item.id);
     onClose();
     const editValues: Record<string, string> = {};
     for (const [k, v] of Object.entries(item.parameters)) {
       editValues[k] = String(v);
     }
     navigate(`/cloud-marketplace/${item.offer.providerId}/${item.offer.id}/provision`, {
-      state: { editValues },
+      state: { editValues, editItemId: item.id },
     });
   };
 

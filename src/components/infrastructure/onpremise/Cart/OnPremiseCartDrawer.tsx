@@ -69,14 +69,13 @@ export function OnPremiseCartDrawer({ open, onClose }: Props) {
   };
 
   const handleEdit = (item: CartItem) => {
-    removeItem(item.id);
     onClose();
     const editValues: Record<string, string> = {};
     for (const [k, v] of Object.entries(item.parameters)) {
       editValues[k] = String(v);
     }
     navigate(`/on-premise/${item.offer.providerId}/${item.offer.id}/provision`, {
-      state: { editValues },
+      state: { editValues, editItemId: item.id },
     });
   };
 

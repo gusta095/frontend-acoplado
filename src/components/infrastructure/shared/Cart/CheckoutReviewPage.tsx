@@ -372,11 +372,10 @@ export function CheckoutReviewPage() {
 
   const handleEdit = (item: CartItem) => {
     isEditingRef.current = true;
-    removeItem(item.id);
     const editValues: Record<string, string> = {};
     for (const [k, v] of Object.entries(item.parameters)) editValues[k] = String(v);
     navigate(`/cloud-marketplace/${item.offer.providerId}/${item.offer.id}/provision`, {
-      state: { editValues, returnTo: '/checkout/review' },
+      state: { editValues, editItemId: item.id, returnTo: '/checkout/review' },
     });
   };
 
@@ -454,8 +453,7 @@ export function CheckoutReviewPage() {
                 </Typography>
 
                 <Box display="flex" flexDirection="column" gap={1} mb={2.5}>
-                  {byOffer.map(({ name, providerId, count }) => {
-                    const prov = getProvider(providerId);
+                  {byOffer.map(({ name, count }) => {
                     return (
                       <Box key={name} display="flex" alignItems="center" justifyContent="space-between" gap={1}>
                         <Box display="flex" alignItems="center" gap={1} minWidth={0}>
