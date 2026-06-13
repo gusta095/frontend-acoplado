@@ -193,19 +193,24 @@ function StepRow({ step, index, isLast }: StepRowProps) {
           </Box>
 
           <Box flexShrink={0} textAlign="right">
-            {isSuccess && step.duration != null && (
-              <Typography variant="caption" color="text.disabled">
-                {(step.duration / 1000).toFixed(1)}s
-              </Typography>
-            )}
             {isPending && (
               <Typography variant="caption" color="text.disabled">Aguardando</Typography>
             )}
             {isFailed && (
               <Typography variant="caption" color="#EF4444" fontWeight={600}>Falhou</Typography>
             )}
-            {isSuccess && (
-              <Typography variant="caption" color="#10B981" fontWeight={600}>Concluído</Typography>
+            {isSuccess && step.duration != null && (
+              <Box
+                sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                  bgcolor: '#F0FDF4', border: '1px solid #A7F3D0',
+                  borderRadius: 1.5, px: 1, py: 0.25,
+                }}
+              >
+                <Typography variant="caption" fontWeight={700} color="text.primary" sx={{ fontFamily: 'monospace' }}>
+                  {(step.duration / 1000).toFixed(1)}s
+                </Typography>
+              </Box>
             )}
           </Box>
         </Box>

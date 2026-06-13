@@ -3,6 +3,7 @@ import type { MarketplaceApi } from './MarketplaceApi';
 import type { Offer, OfferCategory, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './cloudProviders';
 import { templateToOffer, type TemplateYaml } from './templateParser';
+import { provisionToGitHub, type SkeletonFile } from './provisionToGitHub';
 
 export { CLOUD_PROVIDERS };
 
@@ -29,6 +30,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   private config: GitHubClientConfig;
   private providers: Provider[];
   private cache = new Map<string, Offer>();
+  private skeletonPrefixCache = new Map<string, string>(); // offerId → skeleton path prefix in repo
 
   constructor(config: Partial<GitHubClientConfig> = {}, providers: Provider[] = CLOUD_PROVIDERS) {
     this.config = { ...DEFAULT_GITHUB_CONFIG, ...config };
@@ -50,9 +52,12 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
         `/repos/${owner}/${repo}/contents/${repoPath}`
       );
       const tpl = parseYaml(decodeBase64(file.content)) as TemplateYaml;
-      // slug = name of the folder containing template.yaml
       const slug = repoPath.split('/').at(-2)!;
-      return templateToOffer(slug, tpl);
+      const offer = templateToOffer(slug, tpl);
+      // Store skeleton prefix: e.g. "templates/aws/s3/skeleton/"
+      const skeletonPrefix = repoPath.replace(/template\.ya?ml$/i, 'skeleton/');
+      this.skeletonPrefixCache.set(slug, skeletonPrefix);
+      return offer;
     } catch {
       return null;
     }
@@ -126,12 +131,52 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   }
 
   async provision(request: ProvisioningRequest): Promise<ProvisioningResponse> {
-    await new Promise(res => setTimeout(res, 1500));
-    return {
-      requestId: `prov-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      status: 'accepted',
-      message: `Provisionamento de "${request.offerId}" aceito.`,
-      timestamp: new Date().toISOString(),
-    };
+    const repoName = String(request.parameters.repo_name ?? `${request.offerId}-${Date.now()}`);
+    const timestamp = new Date().toISOString();
+
+    // Ensure skeleton prefix is loaded
+    if (!this.skeletonPrefixCache.has(request.offerId)) {
+      await this.fetchAllOffers();
+    }
+    const skeletonPrefix = this.skeletonPrefixCache.get(request.offerId);
+    if (!skeletonPrefix) {
+      return { requestId: '', status: 'failed', message: `Template "${request.offerId}" não encontrado`, timestamp };
+    }
+
+    const { owner, repo, branch } = this.config;
+
+    // Fetch full tree to find skeleton files
+    let treeItems: { path: string; type: string }[];
+    try {
+      const treeRes = await fetch(
+        `/github-api/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+        { headers: { Accept: 'application/vnd.github+json' } }
+      );
+      if (!treeRes.ok) return { requestId: '', status: 'failed', message: 'Erro ao acessar repositório de templates', timestamp };
+      const data = await treeRes.json() as { tree: { path: string; type: string }[] };
+      treeItems = data.tree;
+    } catch {
+      return { requestId: '', status: 'failed', message: 'Erro de conexão com o GitHub', timestamp };
+    }
+
+    const skeletonBlobs = treeItems.filter(i => i.type === 'blob' && i.path.startsWith(skeletonPrefix));
+    if (skeletonBlobs.length === 0) {
+      return { requestId: '', status: 'failed', message: `Nenhum arquivo encontrado em ${skeletonPrefix}`, timestamp };
+    }
+
+    // Fetch and decode each skeleton file
+    const files: SkeletonFile[] = [];
+    for (const item of skeletonBlobs) {
+      try {
+        const file = await this.ghGet<{ content: string }>(`/repos/${owner}/${repo}/contents/${item.path}`);
+        const content = decodeBase64(file.content);
+        const relativePath = item.path.slice(skeletonPrefix.length);
+        files.push({ path: relativePath, content });
+      } catch {
+        return { requestId: '', status: 'failed', message: `Erro ao ler ${item.path}`, timestamp };
+      }
+    }
+
+    return provisionToGitHub(repoName, files, request.parameters);
   }
 }

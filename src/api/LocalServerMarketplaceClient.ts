@@ -3,9 +3,16 @@ import type { MarketplaceApi } from './MarketplaceApi';
 import type { Offer, OfferCategory, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './GitHubMarketplaceClient';
 import { templateToOffer, type TemplateYaml } from './templateParser';
+import { provisionToGitHub, type SkeletonFile } from './provisionToGitHub';
 
 async function scanTemplates(root: string): Promise<string[]> {
   const res = await fetch(`/local-templates?action=scan&path=${encodeURIComponent(root)}`);
+  if (!res.ok) return [];
+  return res.json() as Promise<string[]>;
+}
+
+async function scanAllFiles(dir: string): Promise<string[]> {
+  const res = await fetch(`/local-templates?action=scanAll&path=${encodeURIComponent(dir)}`);
   if (!res.ok) return [];
   return res.json() as Promise<string[]>;
 }
@@ -19,6 +26,7 @@ async function readFile(absPath: string): Promise<string | null> {
 
 export class LocalServerMarketplaceClient implements MarketplaceApi {
   private cache = new Map<string, Offer>();
+  private absPathCache = new Map<string, string>(); // offerId → abs path of template.yaml
   private root: string;
   private providers: Provider[];
 
@@ -33,7 +41,9 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     try {
       const tpl = parseYaml(content) as TemplateYaml;
       const slug = absPath.split('/').at(-2)!;
-      return templateToOffer(slug, tpl);
+      const offer = templateToOffer(slug, tpl);
+      this.absPathCache.set(slug, absPath);
+      return offer;
     } catch {
       return null;
     }
@@ -88,12 +98,37 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
   }
 
   async provision(request: ProvisioningRequest): Promise<ProvisioningResponse> {
-    await new Promise(res => setTimeout(res, 1500));
-    return {
-      requestId: `prov-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      status: 'accepted',
-      message: `Provisionamento de "${request.offerId}" aceito.`,
-      timestamp: new Date().toISOString(),
-    };
+    const repoName = String(request.parameters.repo_name ?? `${request.offerId}-${Date.now()}`);
+    const timestamp = new Date().toISOString();
+
+    // Ensure template path is cached
+    if (!this.absPathCache.has(request.offerId)) {
+      await this.fetchAllOffers();
+    }
+    const templateAbsPath = this.absPathCache.get(request.offerId);
+    if (!templateAbsPath) {
+      return { requestId: '', status: 'failed', message: `Template "${request.offerId}" não encontrado`, timestamp };
+    }
+
+    // Derive skeleton root: replace "template.yaml" with "skeleton"
+    const skeletonRoot = templateAbsPath.replace(/\/template\.ya?ml$/i, '/skeleton');
+
+    // List all files under skeleton
+    const allPaths = await scanAllFiles(skeletonRoot);
+    if (allPaths.length === 0) {
+      return { requestId: '', status: 'failed', message: `Nenhum arquivo encontrado em ${skeletonRoot}`, timestamp };
+    }
+
+    // Read each file
+    const files: SkeletonFile[] = [];
+    for (const absPath of allPaths) {
+      const content = await readFile(absPath);
+      if (content === null) continue;
+      // Path relative to skeletonRoot, e.g. "main.tf" or ".github/workflows/terraform.yml"
+      const relativePath = absPath.slice(skeletonRoot.length + 1);
+      files.push({ path: relativePath, content });
+    }
+
+    return provisionToGitHub(repoName, files, request.parameters);
   }
 }

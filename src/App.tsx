@@ -25,6 +25,7 @@ import { ProvisioningProgressPage } from './components/infrastructure/shared/Car
 import { TemplatesConfigPage } from './components/configuracoes/templates/TemplatesConfigPage';
 import { CloudTemplatesConfigPage } from './components/configuracoes/templates/CloudTemplatesConfigPage';
 import { OnPremiseTemplatesConfigPage } from './components/configuracoes/templates/OnPremiseTemplatesConfigPage';
+import { IntegracoesPage } from './components/configuracoes/integracoes/IntegracoesPage';
 
 function CloudRoutes() {
   const { cloudClient } = useTemplateSource();
@@ -84,6 +85,7 @@ export default function App() {
                         <Route path="/configuracoes/templates" element={<TemplatesConfigPage />} />
                         <Route path="/configuracoes/templates/cloud" element={<CloudTemplatesConfigPage />} />
                         <Route path="/configuracoes/templates/on-premise" element={<OnPremiseTemplatesConfigPage />} />
+                        <Route path="/configuracoes/integracoes" element={<IntegracoesPage />} />
                       </Routes>
                     </AppLayout>
                   </BrowserRouter>

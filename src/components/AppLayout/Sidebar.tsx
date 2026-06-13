@@ -149,7 +149,7 @@ export function Sidebar() {
             <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/configuracoes/templates/on-premise" indent />
           </SidebarGroup>
           <SidebarItem icon={<GroupIcon fontSize="small" />} label="Cadastros" disabled />
-          <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" disabled />
+          <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" to="/configuracoes/integracoes" />
           <SidebarItem icon={<LockIcon fontSize="small" />} label="Permissões" disabled />
         </SidebarGroup>
 

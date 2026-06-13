@@ -47,6 +47,19 @@ function localTemplatesPlugin(): Plugin {
             }
             walk(resolved)
             res.end(JSON.stringify(results))
+          } else if (action === 'scanAll') {
+            const results: string[] = []
+            const walk = (dir: string) => {
+              let entries: fs.Dirent[]
+              try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+              for (const e of entries) {
+                const full = path.join(dir, e.name)
+                if (e.isDirectory()) walk(full)
+                else results.push(full)
+              }
+            }
+            walk(resolved)
+            res.end(JSON.stringify(results))
           } else {
             const content = fs.readFileSync(resolved, 'utf-8')
             res.end(JSON.stringify({ content }))
@@ -60,8 +73,27 @@ function localTemplatesPlugin(): Plugin {
   }
 }
 
+function githubTokenPlugin(): Plugin {
+  return {
+    name: 'github-token',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/github-token-status')) return next()
+        const token = process.env.GITHUB_TOKEN ?? ''
+        const configured = token.length > 0
+        const preview = configured
+          ? `${token.slice(0, 4)}${'*'.repeat(Math.max(0, token.length - 8))}${token.slice(-4)}`
+          : null
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.end(JSON.stringify({ configured, preview, source: 'env' as const }))
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), localTemplatesPlugin()],
+  plugins: [react(), localTemplatesPlugin(), githubTokenPlugin()],
   server: {
     host: '0.0.0.0',
     port: 5173,
