@@ -73,18 +73,25 @@ export async function provisionToGitHub(
 
     const base = `/repos/${repoOwner}/${repoName}`;
 
-    // Helper for POST requests to the Git Data API
+    // Helper for POST requests to the Git Data API — retries up to 3× on 5xx
     const ghPost = async <T>(path: string, body: unknown): Promise<T> => {
-      const res = await fetch(`/github-api${path}`, {
-        method: 'POST',
-        headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const res = await fetch(`/github-api${path}`, {
+          method: 'POST',
+          headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) return res.json() as Promise<T>;
         const err = await res.json().catch(() => ({})) as { message?: string };
+        // Retry on server errors (5xx) — git database may not be ready yet after auto_init
+        if (res.status >= 500 && attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, attempt * 2000));
+          continue;
+        }
         throw new Error(`GitHub API ${path}: ${err.message ?? `HTTP ${res.status}`}`);
       }
-      return res.json() as Promise<T>;
+      throw new Error(`GitHub API ${path}: max retries exceeded`);
     };
 
     // 3. Get the HEAD commit SHA created by auto_init (the initial README commit)

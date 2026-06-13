@@ -6,7 +6,7 @@ export function OnPremiseDeploymentPage() {
   const history = useOnPremiseDeploymentHistory();
   return (
     <DeploymentHistoryContext.Provider value={history}>
-      <DeploymentPage basePath="/on-premise/deployments" marketplacePath="/on-premise" />
+      <DeploymentPage basePath="/on-premise/deployments" />
     </DeploymentHistoryContext.Provider>
   );
 }
