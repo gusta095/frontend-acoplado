@@ -59,7 +59,8 @@ export async function provisionToGitHub(
         name: repoName,
         description: 'Provisionado via Sentinel Fusion Platform',
         private: false,
-        auto_init: false,
+        // auto_init creates the git database — required for the Git Data API to work
+        auto_init: true,
       }),
     });
     if (createRes.status === 422) {
@@ -70,7 +71,10 @@ export async function provisionToGitHub(
       throw new Error(`Erro ao criar repositório: ${err.message ?? `HTTP ${createRes.status}`}`);
     }
 
-    const ghJson = async <T>(path: string, body: unknown): Promise<T> => {
+    const base = `/repos/${repoOwner}/${repoName}`;
+
+    // Helper for POST requests to the Git Data API
+    const ghPost = async <T>(path: string, body: unknown): Promise<T> => {
       const res = await fetch(`/github-api${path}`, {
         method: 'POST',
         headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
@@ -83,13 +87,22 @@ export async function provisionToGitHub(
       return res.json() as Promise<T>;
     };
 
-    const base = `/repos/${repoOwner}/${repoName}`;
+    // 3. Get the HEAD commit SHA created by auto_init (the initial README commit)
+    const refRes = await fetch(`/github-api${base}/git/ref/heads/main`, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!refRes.ok) {
+      const err = await refRes.json().catch(() => ({})) as { message?: string };
+      throw new Error(`Erro ao ler ref principal: ${err.message ?? `HTTP ${refRes.status}`}`);
+    }
+    const refData = await refRes.json() as { object: { sha: string } };
+    const headSha = refData.object.sha;
 
-    // 3. Create blobs for each rendered file
+    // 4. Create blobs for each rendered file
     const blobs = await Promise.all(
       files.map(async file => {
         const rendered = renderTemplate(file.content, params);
-        const blob = await ghJson<{ sha: string }>(`${base}/git/blobs`, {
+        const blob = await ghPost<{ sha: string }>(`${base}/git/blobs`, {
           content: toBase64(rendered),
           encoding: 'base64',
         });
@@ -97,27 +110,32 @@ export async function provisionToGitHub(
       })
     );
 
-    // 4. Create a tree with all blobs
-    const tree = await ghJson<{ sha: string }>(`${base}/git/trees`, {
+    // 5. Create a tree with all blobs (no base_tree — replaces README from auto_init)
+    const tree = await ghPost<{ sha: string }>(`${base}/git/trees`, {
       tree: blobs.map(b => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
     });
 
-    // 5. Create a single commit (no parents — initial commit)
-    const commit = await ghJson<{ sha: string }>(`${base}/git/commits`, {
+    // 6. Create commit on top of the initial commit
+    const commit = await ghPost<{ sha: string }>(`${base}/git/commits`, {
       message: 'feat: initial provisioning via Sentinel Fusion Platform',
       tree: tree.sha,
-      parents: [],
+      parents: [headSha],
     });
 
-    // 6. Create the main branch pointing to that commit
-    await ghJson(`${base}/git/refs`, {
-      ref: 'refs/heads/main',
-      sha: commit.sha,
+    // 7. Update main branch to point to the new commit
+    const patchRes = await fetch(`/github-api${base}/git/refs/heads/main`, {
+      method: 'PATCH',
+      headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sha: commit.sha, force: true }),
     });
+    if (!patchRes.ok) {
+      const err = await patchRes.json().catch(() => ({})) as { message?: string };
+      throw new Error(`Erro ao atualizar branch: ${err.message ?? `HTTP ${patchRes.status}`}`);
+    }
 
     const repoUrl = `https://github.com/${repoOwner}/${repoName}`;
     return {
-      requestId: `gh-${repoName}-${Date.now()}`,
+      requestId: repoUrl,
       status: 'accepted',
       message: `Repositório criado: ${repoUrl}`,
       timestamp,
