@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
-  LocationOn as LocationIcon,
+  Rule as RuleIcon,
   Inventory2Outlined as InventoryIcon,
   CheckCircle as CheckCircleIcon,
   EditOutlined as EditIcon,
@@ -19,12 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
 import { CLOUD_PROVIDERS } from '../../../../api/cloudProviders';
 import type { CartItem, ProviderId } from '../../../../types';
-
-const PROVIDER_FIELDS: Partial<Record<ProviderId, { key: string; label: string }[]>> = {
-  aws:   [{ key: 'account_id',   label: 'Account ID'   }, { key: 'region', label: 'Region' }],
-  azure: [{ key: 'subscription', label: 'Subscription' }, { key: 'region', label: 'Region' }],
-  oci:   [{ key: 'compartment',  label: 'Compartment'  }, { key: 'region', label: 'Region' }],
-};
+import { BUSINESS_RULE_FIELDS, validateField, validateAllFields } from './businessRuleFields';
 
 const fadeIn = `
   @keyframes fadeSlideUp {
@@ -175,18 +170,13 @@ function groupByOffer(items: CartItem[]) {
 }
 
 interface DestinationSectionProps {
-  items: CartItem[];
   values: Record<string, string>;
+  touched: Record<string, boolean>;
   onChange: (key: string, value: string) => void;
+  onTouch: (key: string) => void;
 }
 
-function DestinationSection({ items, values, onChange }: DestinationSectionProps) {
-  const first = items[0];
-  const fields = PROVIDER_FIELDS[first.offer.providerId] ?? [];
-  if (fields.length === 0) return null;
-
-  const provider = getProvider(first.offer.providerId);
-
+function DestinationSection({ values, touched, onChange, onTouch }: DestinationSectionProps) {
   return (
     <Box
       sx={{
@@ -199,51 +189,46 @@ function DestinationSection({ items, values, onChange }: DestinationSectionProps
       }}
     >
       <Box display="flex" alignItems="center" gap={1} mb={2.5}>
-        <LocationIcon sx={{ fontSize: 16, color: '#0050B3' }} />
+        <RuleIcon sx={{ fontSize: 16, color: '#0050B3' }} />
         <Typography variant="caption" fontWeight={700} color="#0050B3" sx={{ textTransform: 'uppercase', letterSpacing: 0.7 }}>
-          Destino do provisionamento
+          Regras de negócio
         </Typography>
-        {provider && (
-          <Chip
-            label={provider.shortName}
-            size="small"
-            sx={{
-              ml: 'auto',
-              bgcolor: `${provider.accentColor}18`,
-              color: provider.accentColor,
-              fontWeight: 700,
-              fontSize: '0.65rem',
-              border: `1px solid ${provider.accentColor}35`,
-            }}
-          />
-        )}
       </Box>
 
       <Grid container spacing={2}>
-        {fields.map(({ key, label }) => (
-          <Grid item xs={12} sm={6} key={key}>
-            <TextField
-              label={label}
-              value={values[key] ?? ''}
-              onChange={e => onChange(key, e.target.value)}
-              fullWidth
-              size="small"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: '#fff',
-                  '& fieldset': { borderColor: '#BFDBFE' },
-                  '&:hover fieldset': { borderColor: '#0050B3' },
-                  '&.Mui-focused fieldset': { borderColor: '#0050B3' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#0050B3' },
-              }}
-            />
-          </Grid>
-        ))}
+        {BUSINESS_RULE_FIELDS.map(field => {
+          const error = touched[field.key] ? validateField(field, values[field.key] ?? '') : null;
+          return (
+            <Grid item xs={12} sm={6} key={field.key}>
+              <TextField
+                label={field.label}
+                placeholder={field.placeholder}
+                value={values[field.key] ?? ''}
+                onChange={e => onChange(field.key, e.target.value)}
+                onBlur={() => onTouch(field.key)}
+                error={!!error}
+                helperText={error ?? field.helperText}
+                inputProps={{ maxLength: field.maxLength }}
+                required={field.required}
+                fullWidth
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: '#fff',
+                    '& fieldset': { borderColor: '#BFDBFE' },
+                    '&:hover fieldset': { borderColor: '#0050B3' },
+                    '&.Mui-focused fieldset': { borderColor: '#0050B3' },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#0050B3' },
+                }}
+              />
+            </Grid>
+          );
+        })}
       </Grid>
 
       <Typography variant="caption" color="#64748B" display="block" mt={2}>
-        Todos os recursos abaixo serão provisionados neste destino.
+        Essas informações serão injetadas em todos os recursos deste provisionamento.
       </Typography>
     </Box>
   );
@@ -260,8 +245,7 @@ interface ItemCardProps {
 
 function ItemCard({ item, index, disabled, onEdit, onRemove, onViewPayload }: ItemCardProps) {
   const provider = getProvider(item.offer.providerId);
-  const destinationKeys = new Set((PROVIDER_FIELDS[item.offer.providerId] ?? []).map(f => f.key));
-  const params = Object.entries(item.parameters).filter(([k]) => !destinationKeys.has(k));
+  const params = Object.entries(item.parameters);
 
   return (
     <Card
@@ -354,11 +338,10 @@ export function CheckoutReviewPage() {
   const isEditingRef = useRef(false);
   const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
   const [finalPayloadOpen, setFinalPayloadOpen] = useState(false);
-  const [destination, setDestination] = useState<Record<string, string>>(() => {
-    if (items.length === 0) return {};
-    const fields = PROVIDER_FIELDS[items[0].offer.providerId] ?? [];
-    return Object.fromEntries(fields.map(f => [f.key, String(items[0].parameters[f.key] ?? '')]));
-  });
+  const [destination, setDestination] = useState<Record<string, string>>(
+    () => Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, '']))
+  );
+  const [destinationTouched, setDestinationTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (items.length === 0 && !isEditingRef.current) navigate('/cloud-marketplace');
@@ -368,6 +351,10 @@ export function CheckoutReviewPage() {
 
   const handleDestinationChange = (key: string, value: string) => {
     setDestination(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleDestinationTouch = (key: string) => {
+    setDestinationTouched(prev => ({ ...prev, [key]: true }));
   };
 
   const handleEdit = (item: CartItem) => {
@@ -380,6 +367,9 @@ export function CheckoutReviewPage() {
   };
 
   const handleConfirm = () => {
+    const allTouched = Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, true]));
+    setDestinationTouched(allTouched);
+    if (!validateAllFields(destination)) return;
     navigate('/provisioning', { state: { items, destination } });
   };
 
@@ -427,7 +417,7 @@ export function CheckoutReviewPage() {
           {/* Left — destino + lista de itens */}
           <Grid item xs={12} md={8}>
             <Box display="flex" flexDirection="column" gap={2}>
-              <DestinationSection items={items} values={destination} onChange={handleDestinationChange} />
+              <DestinationSection values={destination} touched={destinationTouched} onChange={handleDestinationChange} onTouch={handleDestinationTouch} />
               {items.map((item, i) => (
                 <ItemCard key={item.id} item={item} index={i} disabled={false} onEdit={handleEdit} onRemove={removeItem} onViewPayload={setPayloadItem} />
               ))}
