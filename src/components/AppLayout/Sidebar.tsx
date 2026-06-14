@@ -28,9 +28,10 @@ interface SidebarGroupProps {
   icon: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  nested?: boolean;
 }
 
-function SidebarGroup({ label, icon, children, defaultOpen = true }: SidebarGroupProps) {
+function SidebarGroup({ label, icon, children, defaultOpen = true, nested = false }: SidebarGroupProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -43,9 +44,10 @@ function SidebarGroup({ label, icon, children, defaultOpen = true }: SidebarGrou
           mt: 1,
           px: 1.5,
           py: 0.875,
-          backgroundColor: 'rgba(0,48,135,0.07)',
+          backgroundColor: nested ? 'rgba(0,48,135,0.07)' : 'rgba(0,48,135,0.14)',
+          border: nested ? '1px solid rgba(0,48,135,0.15)' : '1px solid rgba(0,48,135,0.25)',
           color: '#003087',
-          '&:hover': { backgroundColor: 'rgba(0,48,135,0.12)' },
+          '&:hover': { backgroundColor: nested ? 'rgba(0,48,135,0.10)' : 'rgba(0,48,135,0.12)' },
         }}
       >
         <ListItemIcon sx={{ minWidth: 32, color: '#003087' }}>
@@ -134,7 +136,7 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup label="Observabilidade" icon={<VisibilityIcon fontSize="small" />} defaultOpen={false}>
-          <SidebarGroup label="Implantações" icon={<RocketLaunchIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarGroup label="Implantações" icon={<RocketLaunchIcon fontSize="small" />} defaultOpen={false} nested>
             <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/deployments" indent />
             <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/on-premise/deployments" indent />
           </SidebarGroup>
@@ -144,7 +146,7 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup label="Configurações" icon={<SettingsIcon fontSize="small" />} defaultOpen={false}>
-          <SidebarGroup label="Templates" icon={<AccountTreeIcon fontSize="small" />} defaultOpen={false}>
+          <SidebarGroup label="Templates" icon={<AccountTreeIcon fontSize="small" />} defaultOpen={false} nested>
             <SidebarItem icon={<CloudIcon fontSize="small" />} label="Cloud" to="/configuracoes/templates/cloud" indent />
             <SidebarItem icon={<StorageIcon fontSize="small" />} label="On-Premise" to="/configuracoes/templates/on-premise" indent />
           </SidebarGroup>
