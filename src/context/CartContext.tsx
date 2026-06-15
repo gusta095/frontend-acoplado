@@ -1,10 +1,13 @@
 // @refresh reset
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import type { CartItem, Offer, ParameterValue } from '../types';
+import { BUSINESS_RULE_FIELDS } from '../components/infrastructure/shared/Cart/businessRuleFields';
 
 interface CartContextValue {
   items: CartItem[];
   activeProvider: string | null;
+  definicaoProduto: Record<string, string>;
+  setDefinicaoProduto: (values: Record<string, string>) => void;
   addItem: (offer: Offer, parameters: Record<string, ParameterValue>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
@@ -12,8 +15,11 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+const emptyDefinicao = () => Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, '']));
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [definicaoProduto, setDefinicaoProdutoState] = useState<Record<string, string>>(emptyDefinicao);
 
   const addItem = useCallback((offer: Offer, parameters: Record<string, ParameterValue>) => {
     const item: CartItem = {
@@ -29,12 +35,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => prev.filter(item => item.id !== id));
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    setItems([]);
+    setDefinicaoProdutoState(emptyDefinicao());
+  }, []);
+
+  const setDefinicaoProduto = useCallback((values: Record<string, string>) => {
+    setDefinicaoProdutoState(values);
+  }, []);
 
   const activeProvider = items.length > 0 ? items[0].offer.providerId : null;
 
   return (
-    <CartContext.Provider value={{ items, activeProvider, addItem, removeItem, clearCart }}>
+    <CartContext.Provider value={{ items, activeProvider, definicaoProduto, setDefinicaoProduto, addItem, removeItem, clearCart }}>
       {children}
     </CartContext.Provider>
   );

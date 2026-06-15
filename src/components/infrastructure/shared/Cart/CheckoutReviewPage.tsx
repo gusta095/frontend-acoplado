@@ -354,13 +354,10 @@ function ItemCard({ item, index, disabled, onEdit, onRemove, onViewPayload }: It
 
 export function CheckoutReviewPage() {
   const navigate = useNavigate();
-  const { items, removeItem } = useCart();
+  const { items, removeItem, definicaoProduto, setDefinicaoProduto } = useCart();
   const isEditingRef = useRef(false);
   const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
   const [finalPayloadOpen, setFinalPayloadOpen] = useState(false);
-  const [definicaoProduto, setDefinicaoProduto] = useState<Record<string, string>>(
-    () => Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, '']))
-  );
   const [definicaoProdutoTouched, setDefinicaoProdutoTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -370,7 +367,7 @@ export function CheckoutReviewPage() {
   const byOffer = groupByOffer(items);
 
   const handleDefinicaoChange = (key: string, value: string) => {
-    setDefinicaoProduto(prev => ({ ...prev, [key]: value }));
+    setDefinicaoProduto({ ...definicaoProduto, [key]: value });
   };
 
   const handleDefinicaoTouch = (key: string) => {

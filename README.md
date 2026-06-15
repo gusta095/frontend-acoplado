@@ -75,6 +75,30 @@ Clique **Aplicar**. O portal verifica o caminho e lista os providers encontrados
 
 ---
 
+## Como funciona o provisionamento
+
+O papel do portal é **enviar uma requisição ao GitHub e fazer polling do resultado**. Toda a execução de infraestrutura acontece fora do portal, dentro do GitHub Actions.
+
+### Dois repositórios envolvidos
+
+| Repositório | Papel |
+|---|---|
+| **Repo de templates** | Configurado em Configurações → Templates. Contém os `template.yaml` e os arquivos do `skeleton/`. O portal lê daqui. |
+| **Repo de destino** | Criado em tempo de provisionamento com o nome informado no campo `repo_name` do formulário. O portal escreve aqui. |
+
+### Fluxo
+
+1. **Leitura** — o portal busca o `template.yaml` do repo de templates e renderiza o formulário com os parâmetros definidos nele.
+2. **Provisionamento** — ao confirmar, o portal:
+   - Cria o repo de destino no GitHub (na org configurada em Configurações → Integrações, ou no perfil pessoal do token se não houver org).
+   - Faz commit dos arquivos do `skeleton/` com os parâmetros interpolados.
+   - O GitHub Actions dispara automaticamente ao detectar o commit.
+3. **Polling** — o portal consulta periodicamente a API do GitHub Actions para acompanhar o status do workflow e exibe o resultado em tempo real na tela de implantações.
+
+O Terraform, Ansible ou qualquer ferramenta de IaC roda **dentro do GitHub Actions** — o portal não sabe nem se importa com o que acontece lá dentro, só observa se o workflow terminou com sucesso ou falha.
+
+---
+
 ## Integração com Backstage
 
 O app é embutido no Backstage via `<iframe src="http://localhost:5173/cloud-marketplace">` dentro de um `PageBlueprint`. O Vite sobe em `:5173` e o Backstage em `:3000`.
