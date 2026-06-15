@@ -4,28 +4,47 @@ export interface BusinessRuleField {
   placeholder?: string;
   regex?: RegExp;
   maxLength?: number;
+  minLength?: number;
   helperText?: string;
   required?: boolean;
+  options?: string[];
 }
 
 export const BUSINESS_RULE_FIELDS: BusinessRuleField[] = [
   {
-    key: 'sistema',
-    label: 'Sistema',
-    placeholder: 'ex: SIGF',
-    maxLength: 20,
-    regex: /^[A-Za-z0-9\-_]+$/,
-    helperText: 'Letras, números, hífens e underscores',
+    key: 'product_name',
+    label: 'Nome do Produto',
+    placeholder: 'ex: sigf',
+    minLength: 3,
+    maxLength: 11,
+    regex: /^[a-z]{3,11}$/,
+    helperText: 'Use apenas letras minúsculas (3–11 caracteres)',
     required: true,
   },
   {
-    key: 'grupo_trabalho',
-    label: 'Grupo de Trabalho',
-    placeholder: 'ex: SRE',
-    maxLength: 30,
-    regex: /^[A-Za-zÀ-ÿ0-9\s\-]+$/,
-    helperText: 'Letras, números e hífens',
+    key: 'system',
+    label: 'Sistema',
+    helperText: 'Informe qual sistema o produto pertence.',
     required: true,
+    options: [
+      'csd-central-securities-depository',
+      'rtc-real-time-clearing',
+      'sog-sistema-de-onus-e-gravames',
+    ],
+  },
+  {
+    key: 'portfolio',
+    label: 'Portfólio',
+    helperText: 'Informe qual portfólio o produto pertence.',
+    required: true,
+    options: ['Listados', 'Balcão', 'Tecnologia'],
+  },
+  {
+    key: 'value_chain',
+    label: 'Cadeia de Valor',
+    helperText: 'Informe qual cadeia de valor o produto pertence.',
+    required: true,
+    options: ['emissores', 'dados-corporativos', 'dados-regulatórios'],
   },
 ];
 

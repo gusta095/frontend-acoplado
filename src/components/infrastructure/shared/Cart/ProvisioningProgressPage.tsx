@@ -44,7 +44,7 @@ interface StepState {
 
 interface LocationState {
   items: CartItem[];
-  destination: Record<string, string>;
+  definicaoProduto: Record<string, string>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ export function ProvisioningProgressPage() {
 
   const state = location.state as LocationState | null;
   const items = state?.items ?? [];
-  const destination = state?.destination ?? {};
+  const definicaoProduto = state?.definicaoProduto ?? {};
 
   const [steps, setSteps] = useState<StepState[]>(() =>
     items.map(item => ({
@@ -353,7 +353,7 @@ export function ProvisioningProgressPage() {
           response = await cloudClient.provision({
             offerId:    items[i].offer.id,
             providerId: items[i].offer.providerId,
-            parameters: { ...items[i].parameters, ...destination },
+            parameters: { ...items[i].parameters, ...definicaoProduto },
           });
         } catch {
           response = { requestId: '', status: 'failed', message: 'Erro inesperado', timestamp: new Date().toISOString() };
@@ -393,7 +393,7 @@ export function ProvisioningProgressPage() {
       // Registra o batch — contexto inicia o polling automaticamente para cada item com repoUrl
       addBatch({
         batchId, timestamp,
-        snapshot: items.map(item => ({ ...item, parameters: { ...item.parameters, ...destination } })),
+        snapshot: items.map(item => ({ ...item, parameters: { ...item.parameters, ...definicaoProduto } })),
         results: items.map((item, i) => ({ itemId: item.id, response: responses[i], startedAt: startedAts[i] })),
       });
       setBatchId(batchId);

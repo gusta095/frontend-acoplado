@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box, Button, Card, CardContent, Chip,
   Dialog, DialogContent, DialogTitle,
-  Divider, Grid, IconButton, TextField, Tooltip, Typography,
+  Divider, FormControl, FormHelperText, Grid, IconButton,
+  InputLabel, MenuItem, Select, TextField, Tooltip, Typography,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -32,27 +33,27 @@ function getProvider(providerId: ProviderId) {
   return CLOUD_PROVIDERS.find(p => p.id === providerId);
 }
 
-function buildPayload(item: CartItem, destination: Record<string, string>) {
+function buildPayload(item: CartItem, definicaoProduto: Record<string, string>) {
   return {
     template: `${item.offer.providerId}/${item.offer.id}`,
-    payload: { ...item.parameters, ...destination },
+    payload: { ...item.parameters, ...definicaoProduto },
   };
 }
 
-function buildFinalPayload(items: CartItem[], destination: Record<string, string>) {
+function buildFinalPayload(items: CartItem[], definicaoProduto: Record<string, string>) {
   return {
-    resources: items.map(item => buildPayload(item, destination)),
+    resources: items.map(item => buildPayload(item, definicaoProduto)),
   };
 }
 
-function FinalPayloadDialog({ items, destination, open, onClose }: {
+function FinalPayloadDialog({ items, definicaoProduto, open, onClose }: {
   items: CartItem[];
-  destination: Record<string, string>;
+  definicaoProduto: Record<string, string>;
   open: boolean;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const json = JSON.stringify(buildFinalPayload(items, destination), null, 2);
+  const json = JSON.stringify(buildFinalPayload(items, definicaoProduto), null, 2);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(json);
@@ -107,11 +108,11 @@ function FinalPayloadDialog({ items, destination, open, onClose }: {
   );
 }
 
-function PayloadDialog({ item, destination, onClose }: { item: CartItem | null; destination: Record<string, string>; onClose: () => void }) {
+function PayloadDialog({ item, definicaoProduto, onClose }: { item: CartItem | null; definicaoProduto: Record<string, string>; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   if (!item) return null;
 
-  const json = JSON.stringify(buildPayload(item, destination), null, 2);
+  const json = JSON.stringify(buildPayload(item, definicaoProduto), null, 2);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(json);
@@ -191,37 +192,56 @@ function DestinationSection({ values, touched, onChange, onTouch }: DestinationS
       <Box display="flex" alignItems="center" gap={1} mb={2.5}>
         <RuleIcon sx={{ fontSize: 16, color: '#0050B3' }} />
         <Typography variant="caption" fontWeight={700} color="#0050B3" sx={{ textTransform: 'uppercase', letterSpacing: 0.7 }}>
-          Regras de negócio
+          Definição de produto
         </Typography>
       </Box>
 
       <Grid container spacing={2}>
         {BUSINESS_RULE_FIELDS.map(field => {
           const error = touched[field.key] ? validateField(field, values[field.key] ?? '') : null;
+          const fieldSx = {
+            '& .MuiOutlinedInput-root': {
+              bgcolor: '#fff',
+              '& fieldset': { borderColor: '#BFDBFE' },
+              '&:hover fieldset': { borderColor: '#0050B3' },
+              '&.Mui-focused fieldset': { borderColor: '#0050B3' },
+            },
+            '& .MuiInputLabel-root.Mui-focused': { color: '#0050B3' },
+          };
+
           return (
             <Grid item xs={12} sm={6} key={field.key}>
-              <TextField
-                label={field.label}
-                placeholder={field.placeholder}
-                value={values[field.key] ?? ''}
-                onChange={e => onChange(field.key, e.target.value)}
-                onBlur={() => onTouch(field.key)}
-                error={!!error}
-                helperText={error ?? field.helperText}
-                inputProps={{ maxLength: field.maxLength }}
-                required={field.required}
-                fullWidth
-                size="small"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: '#fff',
-                    '& fieldset': { borderColor: '#BFDBFE' },
-                    '&:hover fieldset': { borderColor: '#0050B3' },
-                    '&.Mui-focused fieldset': { borderColor: '#0050B3' },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': { color: '#0050B3' },
-                }}
-              />
+              {field.options ? (
+                <FormControl fullWidth size="small" required={field.required} error={!!error} sx={fieldSx}>
+                  <InputLabel>{field.label}</InputLabel>
+                  <Select
+                    label={field.label}
+                    value={values[field.key] ?? ''}
+                    onChange={e => onChange(field.key, e.target.value)}
+                    onBlur={() => onTouch(field.key)}
+                  >
+                    {field.options.map(opt => (
+                      <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>{error ?? field.helperText}</FormHelperText>
+                </FormControl>
+              ) : (
+                <TextField
+                  label={field.label}
+                  placeholder={field.placeholder}
+                  value={values[field.key] ?? ''}
+                  onChange={e => onChange(field.key, e.target.value)}
+                  onBlur={() => onTouch(field.key)}
+                  error={!!error}
+                  helperText={error ?? field.helperText}
+                  inputProps={{ maxLength: field.maxLength }}
+                  required={field.required}
+                  fullWidth
+                  size="small"
+                  sx={fieldSx}
+                />
+              )}
             </Grid>
           );
         })}
@@ -338,10 +358,10 @@ export function CheckoutReviewPage() {
   const isEditingRef = useRef(false);
   const [payloadItem, setPayloadItem] = useState<CartItem | null>(null);
   const [finalPayloadOpen, setFinalPayloadOpen] = useState(false);
-  const [destination, setDestination] = useState<Record<string, string>>(
+  const [definicaoProduto, setDefinicaoProduto] = useState<Record<string, string>>(
     () => Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, '']))
   );
-  const [destinationTouched, setDestinationTouched] = useState<Record<string, boolean>>({});
+  const [definicaoProdutoTouched, setDefinicaoProdutoTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (items.length === 0 && !isEditingRef.current) navigate('/cloud-marketplace');
@@ -349,12 +369,12 @@ export function CheckoutReviewPage() {
 
   const byOffer = groupByOffer(items);
 
-  const handleDestinationChange = (key: string, value: string) => {
-    setDestination(prev => ({ ...prev, [key]: value }));
+  const handleDefinicaoChange = (key: string, value: string) => {
+    setDefinicaoProduto(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleDestinationTouch = (key: string) => {
-    setDestinationTouched(prev => ({ ...prev, [key]: true }));
+  const handleDefinicaoTouch = (key: string) => {
+    setDefinicaoProdutoTouched(prev => ({ ...prev, [key]: true }));
   };
 
   const handleEdit = (item: CartItem) => {
@@ -368,17 +388,17 @@ export function CheckoutReviewPage() {
 
   const handleConfirm = () => {
     const allTouched = Object.fromEntries(BUSINESS_RULE_FIELDS.map(f => [f.key, true]));
-    setDestinationTouched(allTouched);
-    if (!validateAllFields(destination)) return;
-    navigate('/provisioning', { state: { items, destination } });
+    setDefinicaoProdutoTouched(allTouched);
+    if (!validateAllFields(definicaoProduto)) return;
+    navigate('/provisioning', { state: { items, definicaoProduto } });
   };
 
   if (items.length === 0) return null;
 
   return (
     <>
-      <PayloadDialog item={payloadItem} destination={destination} onClose={() => setPayloadItem(null)} />
-      <FinalPayloadDialog items={items} destination={destination} open={finalPayloadOpen} onClose={() => setFinalPayloadOpen(false)} />
+      <PayloadDialog item={payloadItem} definicaoProduto={definicaoProduto} onClose={() => setPayloadItem(null)} />
+      <FinalPayloadDialog items={items} definicaoProduto={definicaoProduto} open={finalPayloadOpen} onClose={() => setFinalPayloadOpen(false)} />
       <style>{fadeIn}</style>
       <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100%', px: { xs: 2, md: 5 }, py: 4 }}>
 
@@ -417,7 +437,7 @@ export function CheckoutReviewPage() {
           {/* Left — destino + lista de itens */}
           <Grid item xs={12} md={8}>
             <Box display="flex" flexDirection="column" gap={2}>
-              <DestinationSection values={destination} touched={destinationTouched} onChange={handleDestinationChange} onTouch={handleDestinationTouch} />
+              <DestinationSection values={definicaoProduto} touched={definicaoProdutoTouched} onChange={handleDefinicaoChange} onTouch={handleDefinicaoTouch} />
               {items.map((item, i) => (
                 <ItemCard key={item.id} item={item} index={i} disabled={false} onEdit={handleEdit} onRemove={removeItem} onViewPayload={setPayloadItem} />
               ))}
