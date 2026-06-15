@@ -58,7 +58,7 @@ export async function provisionToGitHub(
       body: JSON.stringify({
         name: repoName,
         description: 'Provisionado via Sentinel Fusion Platform',
-        private: true,
+        private: false,
         // auto_init creates the git database — required for the Git Data API to work
         auto_init: true,
       }),

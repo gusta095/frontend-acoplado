@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Grid, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProviders } from '../../../../hooks/useProviders';
@@ -6,7 +6,7 @@ import { useMarketplaceClient } from '../../../../context/MarketplaceClientConte
 import { ProviderCard } from './ProviderCard';
 
 export function MarketplacePage() {
-  const { providers, loading } = useProviders();
+  const { providers, loading, error } = useProviders();
   const navigate = useNavigate();
   const { client } = useMarketplaceClient();
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
@@ -21,6 +21,14 @@ export function MarketplacePage() {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
         <CircularProgress sx={{ color: '#003087' }} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={4}>
+        <Alert severity="error" sx={{ whiteSpace: 'pre-line' }}>{error}</Alert>
       </Box>
     );
   }

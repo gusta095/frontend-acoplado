@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Grid, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProviders } from '../../../../hooks/useProviders';
@@ -7,7 +7,7 @@ import type { Provider } from '../../../../types';
 import { ProviderCard } from './ProviderCard';
 
 export function OnPremiseMarketplacePage() {
-  const { providers, loading } = useProviders();
+  const { providers, loading, error } = useProviders();
   const { client, basePath } = useMarketplaceClient();
   const navigate = useNavigate();
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
@@ -25,6 +25,14 @@ export function OnPremiseMarketplacePage() {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
         <CircularProgress sx={{ color: '#003087' }} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={4}>
+        <Alert severity="error" sx={{ whiteSpace: 'pre-line' }}>{error}</Alert>
       </Box>
     );
   }

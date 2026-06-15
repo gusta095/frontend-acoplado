@@ -150,7 +150,7 @@ function parseSchema(schema: SchemaDef): { parameters: OfferParameter[]; conditi
   return { parameters, conditionals, groups };
 }
 
-export function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
+export function templateToOffer(tpl: TemplateYaml): Offer {
   let parameters: OfferParameter[] = [];
   let steps: OfferStep[] | undefined;
 
@@ -169,7 +169,7 @@ export function templateToOffer(slug: string, tpl: TemplateYaml): Offer {
   }
 
   return {
-    id: slug,
+    id: tpl.name,
     providerId: tpl.provider as ProviderId,
     name: tpl.title,
     shortDescription: tpl.description,

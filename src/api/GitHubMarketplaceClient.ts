@@ -45,6 +45,55 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
     return res.json() as Promise<T>;
   }
 
+  private async fetchTreeBlobs(): Promise<{ path: string }[]> {
+    const { owner, repo, branch } = this.config;
+    if (!owner || !repo) return [];
+
+    type GHItem = { path: string; type: 'blob' | 'tree'; sha: string };
+
+    const res = await fetch(
+      `/github-api/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+      { headers: { Accept: 'application/vnd.github+json' } }
+    );
+    if (!res.ok) return [];
+
+    const data = await res.json() as { tree: GHItem[]; truncated: boolean };
+    if (!data.truncated) return data.tree.filter(i => i.type === 'blob');
+
+    // Repo grande demais para fetch recursivo — traversal manual por subtree
+    const blobs: { path: string }[] = [];
+
+    const traverseSubtree = async (sha: string, prefix: string): Promise<void> => {
+      const r = await fetch(
+        `/github-api/repos/${owner}/${repo}/git/trees/${sha}`,
+        { headers: { Accept: 'application/vnd.github+json' } }
+      );
+      if (!r.ok) return;
+      const d = await r.json() as { tree: GHItem[] };
+      await Promise.all(d.tree.map(item => {
+        const fullPath = `${prefix}/${item.path}`;
+        if (item.type === 'blob') { blobs.push({ path: fullPath }); return Promise.resolve(); }
+        if (item.type === 'tree') return traverseSubtree(item.sha, fullPath);
+        return Promise.resolve();
+      }));
+    };
+
+    const rootRes = await fetch(
+      `/github-api/repos/${owner}/${repo}/git/trees/${branch}`,
+      { headers: { Accept: 'application/vnd.github+json' } }
+    );
+    if (!rootRes.ok) return [];
+    const rootData = await rootRes.json() as { tree: GHItem[] };
+
+    await Promise.all(rootData.tree.map(item => {
+      if (item.type === 'blob') { blobs.push({ path: item.path }); return Promise.resolve(); }
+      if (item.type === 'tree') return traverseSubtree(item.sha, item.path);
+      return Promise.resolve();
+    }));
+
+    return blobs;
+  }
+
   private async fetchTemplateByPath(repoPath: string): Promise<Offer | null> {
     const { owner, repo } = this.config;
     try {
@@ -52,11 +101,9 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
         `/repos/${owner}/${repo}/contents/${repoPath}`
       );
       const tpl = parseYaml(decodeBase64(file.content)) as TemplateYaml;
-      const slug = repoPath.split('/').at(-2)!;
-      const offer = templateToOffer(slug, tpl);
-      // Store skeleton prefix: e.g. "templates/aws/s3/skeleton/"
+      const offer = templateToOffer(tpl);
       const skeletonPrefix = repoPath.replace(/template\.ya?ml$/i, 'skeleton/');
-      this.skeletonPrefixCache.set(slug, skeletonPrefix);
+      this.skeletonPrefixCache.set(offer.id, skeletonPrefix);
       return offer;
     } catch {
       return null;
@@ -64,25 +111,30 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   }
 
   private async fetchAllOffers(): Promise<Offer[]> {
-    const { owner, repo, branch } = this.config;
+    const { owner, repo } = this.config;
     if (!owner || !repo) return [];
-    type TreeItem = { path: string; type: 'blob' | 'tree' };
-    let items: TreeItem[];
+
+    let blobs: { path: string }[];
     try {
-      const tree = await fetch(
-        `/github-api/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-        { headers: { Accept: 'application/vnd.github+json' } }
-      );
-      if (!tree.ok) return [];
-      const data = await tree.json() as { tree: TreeItem[] };
-      items = data.tree;
+      blobs = await this.fetchTreeBlobs();
     } catch {
       return [];
     }
 
-    const templatePaths = items
-      .filter(i => i.type === 'blob' && /^template\.ya?ml$/i.test(i.path.split('/').at(-1)!))
+    const templatePaths = blobs
+      .filter(i => /^template\.ya?ml$/i.test(i.path.split('/').at(-1)!))
       .map(i => i.path);
+
+    const byFolder = new Map<string, string[]>();
+    for (const p of templatePaths) {
+      const folder = p.includes('/') ? p.split('/').slice(0, -1).join('/') : '(raiz)';
+      byFolder.set(folder, [...(byFolder.get(folder) ?? []), p]);
+    }
+    const conflicts = [...byFolder.entries()].filter(([, paths]) => paths.length > 1);
+    if (conflicts.length > 0) {
+      const detail = conflicts.map(([folder, paths]) => `  ${folder}: ${paths.join(', ')}`).join('\n');
+      throw new Error(`Múltiplos template.yaml encontrados na mesma pasta:\n${detail}`);
+    }
 
     const results = await Promise.all(templatePaths.map(p => this.fetchTemplateByPath(p)));
     const offers = results.filter((o): o is Offer => o !== null);
@@ -143,23 +195,17 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
       return { requestId: '', status: 'failed', message: `Template "${request.offerId}" não encontrado`, timestamp };
     }
 
-    const { owner, repo, branch } = this.config;
+    const { owner, repo } = this.config;
 
-    // Fetch full tree to find skeleton files
-    let treeItems: { path: string; type: string }[];
+    let allBlobs: { path: string }[];
     try {
-      const treeRes = await fetch(
-        `/github-api/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-        { headers: { Accept: 'application/vnd.github+json' } }
-      );
-      if (!treeRes.ok) return { requestId: '', status: 'failed', message: 'Erro ao acessar repositório de templates', timestamp };
-      const data = await treeRes.json() as { tree: { path: string; type: string }[] };
-      treeItems = data.tree;
+      allBlobs = await this.fetchTreeBlobs();
     } catch {
       return { requestId: '', status: 'failed', message: 'Erro de conexão com o GitHub', timestamp };
     }
+    if (!allBlobs.length) return { requestId: '', status: 'failed', message: 'Erro ao acessar repositório de templates', timestamp };
 
-    const skeletonBlobs = treeItems.filter(i => i.type === 'blob' && i.path.startsWith(skeletonPrefix));
+    const skeletonBlobs = allBlobs.filter(i => i.path.startsWith(skeletonPrefix));
     if (skeletonBlobs.length === 0) {
       return { requestId: '', status: 'failed', message: `Nenhum arquivo encontrado em ${skeletonPrefix}`, timestamp };
     }

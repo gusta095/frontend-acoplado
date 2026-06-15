@@ -1,4 +1,4 @@
-import { Box, Breadcrumbs, CircularProgress, Grid, Link, Typography } from '@mui/material';
+import { Alert, Box, Breadcrumbs, CircularProgress, Grid, Link, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOffers } from '../../../../hooks/useOffers';
@@ -15,7 +15,7 @@ export function OffersPage() {
   const { basePath, marketplaceName } = useMarketplaceClient();
   const [selectedCategories, setSelectedCategories] = useState<OfferCategory[]>([]);
 
-  const { offers, loading } = useOffers(providerId as ProviderId);
+  const { offers, loading, error } = useOffers(providerId as ProviderId);
 
   const allCategories = [...new Set(offers.map(o => o.category))];
 
@@ -27,6 +27,14 @@ export function OffersPage() {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
         <CircularProgress sx={{ color: '#003087' }} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={4}>
+        <Alert severity="error" sx={{ whiteSpace: 'pre-line' }}>{error}</Alert>
       </Box>
     );
   }

@@ -40,9 +40,8 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
     if (!content) return null;
     try {
       const tpl = parseYaml(content) as TemplateYaml;
-      const slug = absPath.split('/').at(-2)!;
-      const offer = templateToOffer(slug, tpl);
-      this.absPathCache.set(slug, absPath);
+      const offer = templateToOffer(tpl);
+      this.absPathCache.set(offer.id, absPath);
       return offer;
     } catch {
       return null;
@@ -51,6 +50,18 @@ export class LocalServerMarketplaceClient implements MarketplaceApi {
 
   private async fetchAllOffers(): Promise<Offer[]> {
     const paths = await scanTemplates(this.root);
+
+    const byFolder = new Map<string, string[]>();
+    for (const p of paths) {
+      const folder = p.includes('/') ? p.split('/').slice(0, -1).join('/') : '(raiz)';
+      byFolder.set(folder, [...(byFolder.get(folder) ?? []), p]);
+    }
+    const conflicts = [...byFolder.entries()].filter(([, ps]) => ps.length > 1);
+    if (conflicts.length > 0) {
+      const detail = conflicts.map(([folder, ps]) => `  ${folder}: ${ps.join(', ')}`).join('\n');
+      throw new Error(`Múltiplos template.yaml encontrados na mesma pasta:\n${detail}`);
+    }
+
     const results = await Promise.all(paths.map(p => this.fetchTemplateYaml(p)));
     const offers = results.filter((o): o is Offer => o !== null);
     offers.forEach(o => this.cache.set(o.id, o));

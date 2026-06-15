@@ -125,98 +125,94 @@ export function DeploymentHistoryProvider({ children }: { children: React.ReactN
       const { signal } = ctrl;
       const cleanup = () => registry.current.delete(key);
 
+      async function fetchStepsAndUpdate(
+        runId: number, runUrl: string,
+        status: ActionsStatus['status'], conclusion: ActionsStatus['conclusion'],
+      ): Promise<ActionsStep[]> {
+        try {
+          const jobsRes = await fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}/jobs`);
+          if (!jobsRes.ok) return [];
+          const { jobs } = await jobsRes.json() as {
+            jobs: Array<{ name: string; status: string; conclusion: string | null; steps?: Array<{ name: string; status: string; conclusion: string | null }> }>;
+          };
+          const mainJob = jobs[0];
+          if (!mainJob?.steps) return [];
+          const userSteps = mainJob.steps.filter(isUserStep);
+          return userSteps.length > 0
+            ? userSteps.map(s => ({ name: s.name, status: mapStepStatus(s) }))
+            : [{ name: 'GitHub Actions', status: mapStepStatus(mainJob) }];
+        } catch {
+          return [];
+        }
+      }
+
       async function poll() {
-        // ── Phase 1: wait for a run to appear (up to ~2 min) ─────────────────
+        // ── Phase 1: aguarda o run aparecer na API ────────────────────────────
+        // Backoff exponencial: começa em 3s, dobra a cada tentativa, teto de 20s.
+        // Timeout total de ~2 min (12 tentativas).
         let runId: number | null = null;
         let runUrl = '';
 
-        for (let attempt = 0; attempt < 24; attempt++) {
+        for (let attempt = 0; attempt < 12; attempt++) {
+          const delay = Math.min(3000 * 2 ** attempt, 20000);
           if (signal.aborted) return;
-          await sleep(5000);
+          await sleep(delay);
           if (signal.aborted) return;
           try {
-            const res = await fetch(
-              `/github-api/repos/${owner}/${repo}/actions/runs?per_page=1`,
-            );
+            const res = await fetch(`/github-api/repos/${owner}/${repo}/actions/runs?per_page=1`, { headers: { 'Cache-Control': 'no-cache' } });
             if (!res.ok) continue;
             const data = await res.json() as {
-              workflow_runs: Array<{
-                id: number; html_url: string;
-                status: string; conclusion: string | null;
-              }>;
+              workflow_runs: Array<{ id: number; html_url: string; status: string; conclusion: string | null }>;
             };
-            if (data.workflow_runs?.length) {
-              const run = data.workflow_runs[0];
-              runId  = run.id;
-              runUrl = run.html_url;
-              const status = run.status as ActionsStatus['status'];
-              updateItemActionsStatus(batchId, itemId, {
-                runId, runUrl, status,
-                conclusion: run.conclusion as ActionsStatus['conclusion'],
-              });
-              if (run.status === 'completed') {
-                // Fetch steps before returning so pipeline panel isn't empty
-                try {
-                  const jobsRes = await fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}/jobs`);
-                  if (jobsRes.ok) {
-                    const { jobs } = await jobsRes.json() as {
-                      jobs: Array<{ name: string; status: string; conclusion: string | null; steps?: Array<{ name: string; status: string; conclusion: string | null }> }>;
-                    };
-                    const mainJob = jobs[0];
-                    let steps: ActionsStep[] = [];
-                    if (mainJob?.steps) {
-                      const userSteps = mainJob.steps.filter(isUserStep);
-                      steps = userSteps.length > 0
-                        ? userSteps.map(s => ({ name: s.name, status: mapStepStatus(s) }))
-                        : [{ name: 'GitHub Actions', status: mapStepStatus(mainJob) }];
-                    }
-                    updateItemActionsStatus(batchId, itemId, {
-                      runId, runUrl, status: 'completed',
-                      conclusion: run.conclusion as ActionsStatus['conclusion'],
-                      steps,
-                    });
-                  }
-                } catch { /* steps remain empty */ }
-                cleanup(); return;
-              }
-              break;
+            if (!data.workflow_runs?.length) continue;
+
+            const run = data.workflow_runs[0];
+            runId  = run.id;
+            runUrl = run.html_url;
+            const status = run.status as ActionsStatus['status'];
+            const conclusion = run.conclusion as ActionsStatus['conclusion'];
+
+            if (run.status === 'completed') {
+              const steps = await fetchStepsAndUpdate(runId, runUrl, status, conclusion);
+              updateItemActionsStatus(batchId, itemId, { runId, runUrl, status, conclusion, steps });
+              cleanup(); return;
             }
+
+            updateItemActionsStatus(batchId, itemId, { runId, runUrl, status, conclusion });
+            break;
           } catch { /* keep polling */ }
         }
 
         if (!runId) {
-          // Timeout — repo created but Actions never started
           updateItemActionsStatus(batchId, itemId, { status: 'completed', conclusion: null });
-          cleanup();
-          return;
+          cleanup(); return;
         }
 
-        // ── Phase 2: poll run + job steps until completed ─────────────────────
+        // ── Phase 2: checa imediatamente ao entrar, depois dorme entre rounds ─
+        const noCache = { headers: { 'Cache-Control': 'no-cache' } };
         while (!signal.aborted) {
-          await sleep(5000);
-          if (signal.aborted) return;
           try {
             const [runRes, jobsRes] = await Promise.all([
-              fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}`),
-              fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}/jobs`),
+              fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}`, noCache),
+              fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}/jobs`, noCache),
             ]);
-            const run = await runRes.json() as {
-              status: string; conclusion: string | null; html_url: string;
-            };
-            const { jobs } = await jobsRes.json() as {
-              jobs: Array<{
-                name: string; status: string; conclusion: string | null;
-                steps?: Array<{ name: string; status: string; conclusion: string | null }>;
-              }>;
-            };
 
-            const mainJob = jobs[0];
+            if (!runRes.ok) { await sleep(3000); continue; }
+
+            const run = await runRes.json() as { status: string; conclusion: string | null; html_url: string };
+
             let steps: ActionsStep[] = [];
-            if (mainJob?.steps) {
-              const userSteps = mainJob.steps.filter(isUserStep);
-              steps = userSteps.length > 0
-                ? userSteps.map(s => ({ name: s.name, status: mapStepStatus(s) }))
-                : [{ name: 'GitHub Actions', status: mapStepStatus(mainJob) }];
+            if (jobsRes.ok) {
+              const { jobs } = await jobsRes.json() as {
+                jobs: Array<{ name: string; status: string; conclusion: string | null; steps?: Array<{ name: string; status: string; conclusion: string | null }> }>;
+              };
+              const mainJob = jobs?.[0];
+              if (mainJob?.steps) {
+                const userSteps = mainJob.steps.filter(isUserStep);
+                steps = userSteps.length > 0
+                  ? userSteps.map(s => ({ name: s.name, status: mapStepStatus(s) }))
+                  : [{ name: 'GitHub Actions', status: mapStepStatus(mainJob) }];
+              }
             }
 
             updateItemActionsStatus(batchId, itemId, {
@@ -229,6 +225,8 @@ export function DeploymentHistoryProvider({ children }: { children: React.ReactN
 
             if (run.status === 'completed') { cleanup(); return; }
           } catch { /* keep polling */ }
+
+          await sleep(2000);
         }
       }
 
