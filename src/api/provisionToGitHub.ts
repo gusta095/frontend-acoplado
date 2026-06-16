@@ -61,7 +61,7 @@ export async function provisionToGitHub(
         body: JSON.stringify({
           name: repoName,
           description: 'Provisionado via Sentinel Fusion Platform',
-          private: false,
+          private: true,
           auto_init: true,
         }),
       });
