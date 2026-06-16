@@ -47,31 +47,35 @@ export async function provisionToGitHub(
 
     // 2. Create repository — under org if configured, otherwise under authenticated user
     const targetOrg = (localStorage.getItem('integracoes:github:org') ?? '').trim();
-    const repoEndpoint = targetOrg
-      ? `/github-api/orgs/${targetOrg}/repos`
-      : '/github-api/user/repos';
     const repoOwner = targetOrg || user.login;
 
-    const createRes = await fetch(repoEndpoint, {
-      method: 'POST',
-      headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: repoName,
-        description: 'Provisionado via Sentinel Fusion Platform',
-        private: false,
-        // auto_init creates the git database — required for the Git Data API to work
-        auto_init: true,
-      }),
-    });
-    if (createRes.status === 422) {
-      throw new Error(`Repositório "${repoName}" já existe em @${repoOwner}`);
+    // [DEVTOOLS] Se reuse_repo estiver ativo, pula a criação e usa o repo configurado — remover antes de produção
+    const devReuseEnabled = localStorage.getItem('devtools:reuse_repo_enabled') === 'true';
+    const devReuseRepo    = (localStorage.getItem('devtools:reuse_repo_name') ?? '').trim();
+    const effectiveRepo   = devReuseEnabled && devReuseRepo ? devReuseRepo : repoName;
+    if (!devReuseEnabled || !devReuseRepo) {
+      const repoEndpoint = targetOrg ? `/github-api/orgs/${targetOrg}/repos` : '/github-api/user/repos';
+      const createRes = await fetch(repoEndpoint, {
+        method: 'POST',
+        headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: repoName,
+          description: 'Provisionado via Sentinel Fusion Platform',
+          private: false,
+          auto_init: true,
+        }),
+      });
+      if (createRes.status === 422) {
+        throw new Error(`Repositório "${repoName}" já existe em @${repoOwner}`);
+      }
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({})) as { message?: string };
+        throw new Error(`Erro ao criar repositório: ${err.message ?? `HTTP ${createRes.status}`}`);
+      }
     }
-    if (!createRes.ok) {
-      const err = await createRes.json().catch(() => ({})) as { message?: string };
-      throw new Error(`Erro ao criar repositório: ${err.message ?? `HTTP ${createRes.status}`}`);
-    }
+    // [/DEVTOOLS]
 
-    const base = `/repos/${repoOwner}/${repoName}`;
+    const base = `/repos/${repoOwner}/${effectiveRepo}`;
 
     // Helper for POST requests to the Git Data API — retries up to 3× on 5xx
     const ghPost = async <T>(path: string, body: unknown): Promise<T> => {
@@ -140,7 +144,7 @@ export async function provisionToGitHub(
       throw new Error(`Erro ao atualizar branch: ${err.message ?? `HTTP ${patchRes.status}`}`);
     }
 
-    const repoUrl = `https://github.com/${repoOwner}/${repoName}`;
+    const repoUrl = `https://github.com/${repoOwner}/${effectiveRepo}`;
     return {
       requestId: repoUrl,
       status: 'accepted',

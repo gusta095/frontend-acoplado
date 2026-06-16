@@ -361,8 +361,11 @@ export function CheckoutReviewPage() {
   const [definicaoProdutoTouched, setDefinicaoProdutoTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (items.length === 0 && !isEditingRef.current) navigate('/cloud-marketplace');
-  }, [items.length, navigate]);
+    if (items.length === 0 && !isEditingRef.current) {
+      setDefinicaoProduto({});
+      navigate('/cloud-marketplace');
+    }
+  }, [items.length, navigate, setDefinicaoProduto]);
 
   const byOffer = groupByOffer(items);
 

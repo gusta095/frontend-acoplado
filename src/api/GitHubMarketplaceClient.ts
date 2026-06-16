@@ -31,6 +31,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   private providers: Provider[];
   private cache = new Map<string, Offer>();
   private skeletonPrefixCache = new Map<string, string>(); // offerId → skeleton path prefix in repo
+  private blobsCache: { path: string }[] | null = null;
 
   constructor(config: Partial<GitHubClientConfig> = {}, providers: Provider[] = CLOUD_PROVIDERS) {
     this.config = { ...DEFAULT_GITHUB_CONFIG, ...config };
@@ -46,6 +47,8 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   }
 
   private async fetchTreeBlobs(): Promise<{ path: string }[]> {
+    if (this.blobsCache) return this.blobsCache;
+
     const { owner, repo, branch } = this.config;
     if (!owner || !repo) return [];
 
@@ -58,7 +61,10 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
     if (!res.ok) return [];
 
     const data = await res.json() as { tree: GHItem[]; truncated: boolean };
-    if (!data.truncated) return data.tree.filter(i => i.type === 'blob');
+    if (!data.truncated) {
+      this.blobsCache = data.tree.filter(i => i.type === 'blob');
+      return this.blobsCache;
+    }
 
     // Repo grande demais para fetch recursivo — traversal manual por subtree
     const blobs: { path: string }[] = [];
@@ -91,6 +97,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
       return Promise.resolve();
     }));
 
+    this.blobsCache = blobs;
     return blobs;
   }
 
@@ -210,17 +217,17 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
       return { requestId: '', status: 'failed', message: `Nenhum arquivo encontrado em ${skeletonPrefix}`, timestamp };
     }
 
-    // Fetch and decode each skeleton file
-    const files: SkeletonFile[] = [];
-    for (const item of skeletonBlobs) {
-      try {
-        const file = await this.ghGet<{ content: string }>(`/repos/${owner}/${repo}/contents/${item.path}`);
-        const content = decodeBase64(file.content);
-        const relativePath = item.path.slice(skeletonPrefix.length);
-        files.push({ path: relativePath, content });
-      } catch {
-        return { requestId: '', status: 'failed', message: `Erro ao ler ${item.path}`, timestamp };
-      }
+    // Fetch and decode each skeleton file in parallel
+    let files: SkeletonFile[];
+    try {
+      files = await Promise.all(
+        skeletonBlobs.map(async item => {
+          const file = await this.ghGet<{ content: string }>(`/repos/${owner}/${repo}/contents/${item.path}`);
+          return { path: item.path.slice(skeletonPrefix.length), content: decodeBase64(file.content) };
+        })
+      );
+    } catch (e) {
+      return { requestId: '', status: 'failed', message: e instanceof Error ? e.message : 'Erro ao ler arquivos do skeleton', timestamp };
     }
 
     return provisionToGitHub(repoName, files, request.parameters);

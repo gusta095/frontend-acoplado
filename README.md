@@ -99,6 +99,27 @@ O Terraform, Ansible ou qualquer ferramenta de IaC roda **dentro do GitHub Actio
 
 ---
 
+## DevTools (temporário)
+
+> **Atenção:** esta seção descreve funcionalidade temporária de desenvolvimento. Remover antes de produção.
+
+Acesse **Configurações → DevTools** para habilitar comportamentos alternativos durante testes.
+
+### Reutilizar repositório existente
+
+Por padrão, cada provisionamento cria um repositório novo no GitHub. Para evitar acúmulo de repos durante testes, é possível apontar para um repo fixo:
+
+1. Ative o toggle **Reutilizar repositório existente**.
+2. Informe o nome do repo no campo abaixo (ex: `meu-repo-de-teste`).
+
+Com a opção ativa, o portal **pula a criação do repositório** e faz o commit diretamente no repo informado, substituindo os arquivos a cada execução. O restante do fluxo (blobs, tree, commit, trigger do GitHub Actions) permanece idêntico.
+
+> O repo de reuso deve existir previamente e pertencer ao mesmo owner configurado em Configurações → Integrações.
+
+**Como remover:** buscar `[DEVTOOLS]` no código — há 4 ocorrências em `DevToolsPage.tsx`, `Sidebar.tsx`, `App.tsx` e `provisionToGitHub.ts`.
+
+---
+
 ## Integração com Backstage
 
 O app é embutido no Backstage via `<iframe src="http://localhost:5173/cloud-marketplace">` dentro de um `PageBlueprint`. O Vite sobe em `:5173` e o Backstage em `:3000`.
