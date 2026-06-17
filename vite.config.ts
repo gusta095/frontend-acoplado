@@ -92,8 +92,104 @@ function githubTokenPlugin(): Plugin {
   }
 }
 
+// workaround para bug do rolldown (presente nas versões 1.0.x e 1.1.x): o chunk
+// compartilhado styles-*.js é gerado sem dois imports de MUI/Emotion. Intercepta
+// a requisição HTTP do browser e injeta os imports ausentes antes de servir.
+//
+// IMPORTANTE: ao servir o conteúdo diretamente, precisamos replicar o rewrite de
+// URLs que o Vite normalmente faz: "./foo.js" → "/node_modules/.vite/deps/foo.js?v=HASH".
+// Sem isso, o browser carrega instâncias diferentes do React (com/sem ?v=) e o
+// dispatcher fica null, causando "Cannot read properties of null (reading 'useDebugValue')".
+//
+// O ?v= correto NÃO é o browserHash global do _metadata.json — cada dep pode ter
+// seu próprio browserHash atualizado em memória após ciclos de re-otimização.
+// Lemos o hash diretamente do depsOptimizer ativo do servidor para garantir que
+// usamos exatamente o mesmo ?v= que o Vite está servindo no momento da requisição.
+function fixRolldownEmotionChunk(): Plugin {
+  return {
+    name: 'fix-rolldown-emotion-chunk',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const depPath = req.url?.split('?')[0]
+        if (!depPath?.match(/\/node_modules\/\.vite\/deps\/styles-[^/]+\.js$/)) return next()
+
+        const depsDir = path.join(process.cwd(), 'node_modules/.vite/deps')
+        const filePath = path.join(depsDir, path.basename(depPath))
+        if (!fs.existsSync(filePath)) return next()
+
+        let content = fs.readFileSync(filePath, 'utf-8')
+        let patched = false
+
+        const depBase = '/node_modules/.vite/deps/'
+
+        // Obtém o ?v= correto para cada dep consultando o depsOptimizer ao vivo.
+        // O Vite atribui browserHash individualmente a cada entrada (pode mudar entre
+        // ciclos de re-otimização por descoberta de deps), então não podemos usar o
+        // browserHash global do _metadata.json — ele pode já estar desatualizado.
+        const getVSuffix = (filename: string): string => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const meta = (server as any).environments?.client?.depsOptimizer?.metadata
+            if (meta) {
+              const absFile = path.join(depsDir, filename)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const entry = meta.depInfoList?.find((d: any) => d.file === absFile)
+              const hash = entry?.browserHash ?? meta.browserHash
+              if (hash) return `?v=${hash}`
+            }
+          } catch { /* server ainda não inicializado */ }
+          // fallback: lê do disco
+          try {
+            const m = JSON.parse(fs.readFileSync(path.join(depsDir, '_metadata.json'), 'utf-8'))
+            if (m.browserHash) return `?v=${m.browserHash}`
+          } catch { /* sem metadata */ }
+          return ''
+        }
+
+        // fix 1: init_emotion_react_browser_development_esm chamada sem import
+        const EMOTION_FN = 'init_emotion_react_browser_development_esm'
+        if (content.includes(`${EMOTION_FN}()`) && !content.includes(`${EMOTION_FN} }`)) {
+          content = `import { t as ${EMOTION_FN} } from "${depBase}@emotion_react.js${getVSuffix('@emotion_react.js')}";\n` + content
+          patched = true
+        }
+
+        // fix 2: init_StyledEngineProvider chamada sem definição
+        // existe em identifier-*.js exportada como "tt" — detecta nome do chunk pelo import existente
+        const SEP_FN = 'init_StyledEngineProvider'
+        if (content.includes(`${SEP_FN}()`) && !content.includes(`as ${SEP_FN}`)) {
+          const identifierFile = content.match(/from "\.\/(identifier-[^"]+\.js)"/)?.[1]
+          if (identifierFile) {
+            content = `import { tt as ${SEP_FN} } from "${depBase}${identifierFile}${getVSuffix(identifierFile)}";\n` + content
+            patched = true
+          }
+        }
+
+        if (!patched) return next()
+
+        // replica o rewrite de URLs que o Vite faz normalmente:
+        // "./foo.js" → "/node_modules/.vite/deps/foo.js?v=HASH"
+        content = content.replace(
+          /from "(\.\/([^"]+\.js))"/g,
+          (_match, _full, filename) => `from "${depBase}${filename}${getVSuffix(filename)}"`,
+        )
+
+        res.setHeader('Content-Type', 'application/javascript')
+        res.setHeader('Cache-Control', 'no-cache')
+        res.end(content)
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), localTemplatesPlugin(), githubTokenPlugin()],
+  plugins: [react(), localTemplatesPlugin(), githubTokenPlugin(), fixRolldownEmotionChunk()],
+  optimizeDeps: {
+    include: [
+      '@emotion/react',
+      '@emotion/styled',
+      '@emotion/react/jsx-runtime',
+    ],
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

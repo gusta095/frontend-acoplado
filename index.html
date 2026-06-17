@@ -15,6 +15,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        document.getElementById('root').innerHTML =
+          '<pre style="color:red;padding:20px;white-space:pre-wrap;font-size:13px">' +
+          'ERRO: ' + e.message + '\n\n' + (e.filename || '') + ':' + e.lineno +
+          '\n\nSTACK:\n' + (e.error?.stack || '(sem stack)') +
+          '</pre>';
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        document.getElementById('root').innerHTML =
+          '<pre style="color:red;padding:20px;white-space:pre-wrap;font-size:13px">' +
+          'PROMISE: ' + (e.reason?.message || e.reason) +
+          '\n' + (e.reason?.stack || '') +
+          '</pre>';
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
