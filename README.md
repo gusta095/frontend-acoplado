@@ -77,46 +77,56 @@ Clique **Aplicar**. O portal verifica o caminho e lista os providers encontrados
 
 ## Como funciona o provisionamento
 
-O papel do portal é **enviar uma requisição ao GitHub e fazer polling do resultado**. Toda a execução de infraestrutura acontece fora do portal, dentro do GitHub Actions.
+O portal é agnóstico à infraestrutura — ele não sabe o que o workflow faz, só dispara e observa o resultado.
 
-### Dois repositórios envolvidos
+### Divisão de responsabilidades
+
+| Responsabilidade | Portal | Workflow (repo de templates) |
+|---|:---:|:---:|
+| Ler `template.yaml` e montar o formulário | ✅ | |
+| Validar os parâmetros preenchidos pelo usuário | ✅ | |
+| Montar o payload com parâmetros, provider e definição de produto | ✅ | |
+| Disparar o workflow via `repository_dispatch` | ✅ | |
+| Fazer polling do GitHub Actions e exibir status | ✅ | |
+| Identificar se o repositório já existe ou criar um novo | | ✅ |
+| Renderizar arquivos do skeleton com os parâmetros | | ✅ |
+| Executar Terraform / Ansible / qualquer IaC | | ✅ |
+| Configurar secrets, permissões e infraestrutura | | ✅ |
+
+### Repositórios envolvidos
 
 | Repositório | Papel |
 |---|---|
-| **Repo de templates** | Configurado em Configurações → Templates. Contém os `template.yaml` e os arquivos do `skeleton/`. O portal lê daqui. |
-| **Repo de destino** | Criado em tempo de provisionamento com o nome informado no campo `repo_name` do formulário. O portal escreve aqui. |
+| **Repo de templates** | Configurado em Configurações → Templates. Contém os `template.yaml` com a definição das ofertas e os workflows de provisionamento. O portal lê os templates daqui e dispara os workflows aqui. |
+| **Repo de destino** | Criado pelo workflow com o nome informado no campo `repo_name` do formulário. O portal apenas acompanha o status via polling. |
 
 ### Fluxo
 
-1. **Leitura** — o portal busca o `template.yaml` do repo de templates e renderiza o formulário com os parâmetros definidos nele.
-2. **Provisionamento** — ao confirmar, o portal:
-   - Cria o repo de destino no GitHub (na org configurada em Configurações → Integrações, ou no perfil pessoal do token se não houver org).
-   - Faz commit dos arquivos do `skeleton/` com os parâmetros interpolados.
-   - O GitHub Actions dispara automaticamente ao detectar o commit.
-3. **Polling** — o portal consulta periodicamente a API do GitHub Actions para acompanhar o status do workflow e exibe o resultado em tempo real na tela de implantações.
+1. **Leitura** — o portal busca todos os `template.yaml` do repo de templates e renderiza os formulários com os parâmetros definidos neles.
+2. **Dispatch** — ao confirmar o provisionamento, o portal envia um `repository_dispatch` para o repo de templates com o event type `provision` e um payload contendo `repo_name`, `offer_id`, `org` e os parâmetros preenchidos.
+3. **Execução** — o workflow no repo de templates recebe o evento, renderiza o skeleton com os parâmetros e cria ou atualiza o repo de destino (se já existir, substitui os arquivos e commita; se não existir, cria e faz o push inicial). O push dispara o `terraform.yml` dentro do repo de destino.
+4. **Polling** — o portal consulta periodicamente a API do GitHub Actions no repo de destino e exibe os steps em tempo real na tela de implantações.
 
-O Terraform, Ansible ou qualquer ferramenta de IaC roda **dentro do GitHub Actions** — o portal não sabe nem se importa com o que acontece lá dentro, só observa se o workflow terminou com sucesso ou falha.
+### Contrato do `repository_dispatch`
 
----
+O portal sempre dispara o evento com este formato:
 
-## DevTools (temporário)
+```json
+{
+  "event_type": "provision",
+  "client_payload": {
+    "repo_name": "nome-do-repo-a-criar",
+    "offer_id": "id-da-oferta",
+    "org": "minha-org",
+    "params": {
+      "parametro_1": "valor",
+      "parametro_2": "valor"
+    }
+  }
+}
+```
 
-> **Atenção:** esta seção descreve funcionalidade temporária de desenvolvimento. Remover antes de produção.
-
-Acesse **Configurações → DevTools** para habilitar comportamentos alternativos durante testes.
-
-### Reutilizar repositório existente
-
-Por padrão, cada provisionamento cria um repositório novo no GitHub. Para evitar acúmulo de repos durante testes, é possível apontar para um repo fixo:
-
-1. Ative o toggle **Reutilizar repositório existente**.
-2. Informe o nome do repo no campo abaixo (ex: `meu-repo-de-teste`).
-
-Com a opção ativa, o portal **pula a criação do repositório** e faz o commit diretamente no repo informado, substituindo os arquivos a cada execução. O restante do fluxo (blobs, tree, commit, trigger do GitHub Actions) permanece idêntico.
-
-> O repo de reuso deve existir previamente e pertencer ao mesmo owner configurado em Configurações → Integrações.
-
-**Como remover:** buscar `[DEVTOOLS]` no código — há 4 ocorrências em `DevToolsPage.tsx`, `Sidebar.tsx`, `App.tsx` e `provisionToGitHub.ts`.
+O workflow deve escutar `on: repository_dispatch: types: [provision]` e acessar os valores via `github.event.client_payload`.
 
 ---
 

@@ -49,31 +49,26 @@ export async function provisionToGitHub(
     const targetOrg = (localStorage.getItem('integracoes:github:org') ?? '').trim();
     const repoOwner = targetOrg || user.login;
 
-    // [DEVTOOLS] Se reuse_repo estiver ativo, pula a criação e usa o repo configurado — remover antes de produção
-    const devReuseEnabled = localStorage.getItem('devtools:reuse_repo_enabled') === 'true';
-    const devReuseRepo    = (localStorage.getItem('devtools:reuse_repo_name') ?? '').trim();
-    const effectiveRepo   = devReuseEnabled && devReuseRepo ? devReuseRepo : repoName;
-    if (!devReuseEnabled || !devReuseRepo) {
-      const repoEndpoint = targetOrg ? `/github-api/orgs/${targetOrg}/repos` : '/github-api/user/repos';
-      const createRes = await fetch(repoEndpoint, {
-        method: 'POST',
-        headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: repoName,
-          description: 'Provisionado via Sentinel Fusion Platform',
-          private: true,
-          auto_init: true,
-        }),
-      });
-      if (createRes.status === 422) {
-        throw new Error(`Repositório "${repoName}" já existe em @${repoOwner}`);
-      }
-      if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({})) as { message?: string };
-        throw new Error(`Erro ao criar repositório: ${err.message ?? `HTTP ${createRes.status}`}`);
-      }
+    const repoEndpoint = targetOrg ? `/github-api/orgs/${targetOrg}/repos` : '/github-api/user/repos';
+    const createRes = await fetch(repoEndpoint, {
+      method: 'POST',
+      headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: repoName,
+        description: 'Provisionado via Sentinel Fusion Platform',
+        private: true,
+        auto_init: true,
+      }),
+    });
+    if (createRes.status === 422) {
+      throw new Error(`Repositório "${repoName}" já existe em @${repoOwner}`);
     }
-    // [/DEVTOOLS]
+    if (!createRes.ok) {
+      const err = await createRes.json().catch(() => ({})) as { message?: string };
+      throw new Error(`Erro ao criar repositório: ${err.message ?? `HTTP ${createRes.status}`}`);
+    }
+
+    const effectiveRepo = repoName;
 
     const base = `/repos/${repoOwner}/${effectiveRepo}`;
 

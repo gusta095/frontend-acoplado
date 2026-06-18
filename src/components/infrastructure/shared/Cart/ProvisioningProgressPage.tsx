@@ -64,23 +64,18 @@ function formatDuration(ms: number): string {
 
 // Deriva os subSteps de exibição a partir do actionsStatus do contexto
 function deriveSubSteps(actionsStatus: ActionsStatus): SubStep[] {
-  const repoStep: SubStep = { label: 'Criando repositório', status: 'success' };
-
   if (actionsStatus.status === 'pending' || actionsStatus.status === 'queued') {
-    return [repoStep, { label: 'Aguardando GitHub Actions', status: 'running', isPlaceholder: true }];
+    return [{ label: 'Aguardando GitHub Actions', status: 'running', isPlaceholder: true }];
   }
 
   if (!actionsStatus.steps?.length) {
     const ghStatus: SubStepStatus =
       actionsStatus.status === 'in_progress' ? 'running' :
       actionsStatus.conclusion === 'success'  ? 'success' : 'failed';
-    return [repoStep, { label: 'GitHub Actions', status: ghStatus }];
+    return [{ label: 'GitHub Actions', status: ghStatus }];
   }
 
-  return [
-    repoStep,
-    ...actionsStatus.steps.map(s => ({ label: s.name, status: s.status })),
-  ];
+  return actionsStatus.steps.map(s => ({ label: s.name, status: s.status }));
 }
 
 // ─── Spinner ─────────────────────────────────────────────────────────────────
@@ -212,7 +207,7 @@ function ItemCard({ step }: { step: StepState }) {
                 : pipelineGreen
                   ? `${step.item.offer.name} provisionado com sucesso`
                   : pipelineRed && isFailed && !step.repoUrl
-                    ? `${step.item.offer.name} — falhou ao criar repositório`
+                    ? `${step.item.offer.name} — falhou ao disparar workflow`
                     : pipelineRed
                       ? `${step.item.offer.name} — provisionamento falhou`
                       : step.item.offer.name
@@ -273,7 +268,7 @@ function ItemCard({ step }: { step: StepState }) {
 export function ProvisioningProgressPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { removeItem } = useCart();
+  const { removeItem, setDefinicaoProduto } = useCart();
   const { addBatch, getBatch } = useDeploymentHistory();
   const { cloudClient } = useTemplateSource();
 
@@ -285,7 +280,7 @@ export function ProvisioningProgressPage() {
     items.map(item => ({
       item,
       status: 'pending' as ItemStatus,
-      subSteps: [{ label: 'Criando repositório', status: 'pending' as SubStepStatus }],
+      subSteps: [{ label: 'Disparando workflow', status: 'pending' as SubStepStatus }],
     }))
   );
   const [done, setDone]              = useState(false);
@@ -301,7 +296,7 @@ export function ProvisioningProgressPage() {
     setSteps(prev => prev.map(s => {
       const ctxResult = contextBatch.results.find(r => r.itemId === s.item.id);
       if (!ctxResult?.actionsStatus) return s;
-      if (s.status === 'failed' && !s.repoUrl) return s; // falha na criação do repo — não sobrescreve
+      if (s.status === 'failed' && !s.repoUrl) return s; // falha no dispatch — não sobrescreve com status do Actions
 
       const { actionsStatus } = ctxResult;
       const isDone = actionsStatus.status === 'completed';
@@ -321,6 +316,7 @@ export function ProvisioningProgressPage() {
     if (!currentBatchId || steps.length === 0) return;
     if (steps.every(s => s.status === 'success' || s.status === 'failed')) {
       setDone(true);
+      setDefinicaoProduto({});
     }
   }, [steps, currentBatchId]);
 
@@ -345,7 +341,7 @@ export function ProvisioningProgressPage() {
         patchStep(i, {
           status: 'running',
           startTime: start,
-          subSteps: [{ label: 'Criando repositório', status: 'running' }],
+          subSteps: [{ label: 'Disparando workflow', status: 'running' }],
         });
 
         let response: typeof responses[number];
@@ -366,7 +362,7 @@ export function ProvisioningProgressPage() {
             status: 'failed',
             message: response.message,
             duration: Date.now() - start,
-            subSteps: [{ label: 'Criando repositório', status: 'failed' }],
+            subSteps: [{ label: 'Disparando workflow', status: 'failed' }],
           });
           continue;
         }
@@ -376,10 +372,7 @@ export function ProvisioningProgressPage() {
         patchStep(i, {
           status: 'running',
           repoUrl,
-          subSteps: [
-            { label: 'Criando repositório', status: 'success' },
-            { label: 'Aguardando GitHub Actions', status: 'running', isPlaceholder: true },
-          ],
+          subSteps: [{ label: 'Aguardando GitHub Actions', status: 'running', isPlaceholder: true }],
         });
 
         removeItem(items[i].id);

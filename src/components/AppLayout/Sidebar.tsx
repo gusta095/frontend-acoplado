@@ -153,7 +153,6 @@ export function Sidebar() {
           <SidebarItem icon={<GroupIcon fontSize="small" />} label="Cadastros" disabled />
           <SidebarItem icon={<HubIcon fontSize="small" />} label="Integrações" to="/configuracoes/integracoes" />
           <SidebarItem icon={<LockIcon fontSize="small" />} label="Permissões" disabled />
-          {/* [DEVTOOLS] Remover antes de produção */}
           <SidebarItem icon={<SettingsIcon fontSize="small" />} label="DevTools" to="/configuracoes/devtools" />
         </SidebarGroup>
 

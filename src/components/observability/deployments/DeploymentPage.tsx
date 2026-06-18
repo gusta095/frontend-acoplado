@@ -196,20 +196,15 @@ function PipelinePanel({ result }: { result: DeploymentBatch['results'][0] }) {
     );
   }
 
-  const repoStep = { name: 'Criando repositório', status: 'success' as const };
-  const actionSteps = actionsStatus.steps ?? [];
-  const steps = [repoStep, ...actionSteps];
+  const steps = actionsStatus.steps ?? [];
 
-  if (actionSteps.length === 0) {
+  if (steps.length === 0) {
     return (
-      <Box display="flex" flexDirection="column" gap={0}>
-        <StepRow step={repoStep} isLast={false} />
-        <Box display="flex" alignItems="center" gap={1} pl={3.5} py={0.5}>
-          {liveStatus === 'in_flight' && <Spinner />}
-          <Typography variant="caption" color={liveStatus === 'in_flight' ? '#2563EB' : 'text.secondary'} fontStyle="italic" fontSize="0.78rem">
-            {liveStatus === 'in_flight' ? 'Carregando steps da pipeline...' : 'Nenhum step disponível'}
-          </Typography>
-        </Box>
+      <Box display="flex" alignItems="center" gap={1} py={0.5}>
+        {liveStatus === 'in_flight' && <Spinner />}
+        <Typography variant="caption" color={liveStatus === 'in_flight' ? '#2563EB' : 'text.secondary'} fontStyle="italic" fontSize="0.78rem">
+          {liveStatus === 'in_flight' ? 'Carregando steps da pipeline...' : 'Nenhum step disponível'}
+        </Typography>
       </Box>
     );
   }

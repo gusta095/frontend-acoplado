@@ -3,7 +3,7 @@ import type { MarketplaceApi } from './MarketplaceApi';
 import type { Offer, OfferCategory, Provider, ProviderId, ProvisioningRequest, ProvisioningResponse } from '../types';
 import { CLOUD_PROVIDERS } from './cloudProviders';
 import { templateToOffer, type TemplateYaml } from './templateParser';
-import { provisionToGitHub, type SkeletonFile } from './provisionToGitHub';
+import { dispatchProvision } from './dispatchProvision';
 
 export { CLOUD_PROVIDERS };
 
@@ -30,7 +30,6 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   private config: GitHubClientConfig;
   private providers: Provider[];
   private cache = new Map<string, Offer>();
-  private skeletonPrefixCache = new Map<string, string>(); // offerId → skeleton path prefix in repo
   private blobsCache: { path: string }[] | null = null;
 
   constructor(config: Partial<GitHubClientConfig> = {}, providers: Provider[] = CLOUD_PROVIDERS) {
@@ -108,10 +107,7 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
         `/repos/${owner}/${repo}/contents/${repoPath}`
       );
       const tpl = parseYaml(decodeBase64(file.content)) as TemplateYaml;
-      const offer = templateToOffer(tpl);
-      const skeletonPrefix = repoPath.replace(/template\.ya?ml$/i, 'skeleton/');
-      this.skeletonPrefixCache.set(offer.id, skeletonPrefix);
-      return offer;
+      return templateToOffer(tpl);
     } catch {
       return null;
     }
@@ -190,46 +186,6 @@ export class GitHubMarketplaceClient implements MarketplaceApi {
   }
 
   async provision(request: ProvisioningRequest): Promise<ProvisioningResponse> {
-    const repoName = String(request.parameters.repo_name ?? `${request.offerId}-${Date.now()}`);
-    const timestamp = new Date().toISOString();
-
-    // Ensure skeleton prefix is loaded
-    if (!this.skeletonPrefixCache.has(request.offerId)) {
-      await this.fetchAllOffers();
-    }
-    const skeletonPrefix = this.skeletonPrefixCache.get(request.offerId);
-    if (!skeletonPrefix) {
-      return { requestId: '', status: 'failed', message: `Template "${request.offerId}" não encontrado`, timestamp };
-    }
-
-    const { owner, repo } = this.config;
-
-    let allBlobs: { path: string }[];
-    try {
-      allBlobs = await this.fetchTreeBlobs();
-    } catch {
-      return { requestId: '', status: 'failed', message: 'Erro de conexão com o GitHub', timestamp };
-    }
-    if (!allBlobs.length) return { requestId: '', status: 'failed', message: 'Erro ao acessar repositório de templates', timestamp };
-
-    const skeletonBlobs = allBlobs.filter(i => i.path.startsWith(skeletonPrefix));
-    if (skeletonBlobs.length === 0) {
-      return { requestId: '', status: 'failed', message: `Nenhum arquivo encontrado em ${skeletonPrefix}`, timestamp };
-    }
-
-    // Fetch and decode each skeleton file in parallel
-    let files: SkeletonFile[];
-    try {
-      files = await Promise.all(
-        skeletonBlobs.map(async item => {
-          const file = await this.ghGet<{ content: string }>(`/repos/${owner}/${repo}/contents/${item.path}`);
-          return { path: item.path.slice(skeletonPrefix.length), content: decodeBase64(file.content) };
-        })
-      );
-    } catch (e) {
-      return { requestId: '', status: 'failed', message: e instanceof Error ? e.message : 'Erro ao ler arquivos do skeleton', timestamp };
-    }
-
-    return provisionToGitHub(repoName, files, request.parameters);
+    return dispatchProvision({ owner: this.config.owner, repo: this.config.repo }, request);
   }
 }

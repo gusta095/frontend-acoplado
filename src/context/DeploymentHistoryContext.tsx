@@ -125,10 +125,7 @@ export function DeploymentHistoryProvider({ children }: { children: React.ReactN
       const { signal } = ctrl;
       const cleanup = () => registry.current.delete(key);
 
-      async function fetchStepsAndUpdate(
-        runId: number, runUrl: string,
-        status: ActionsStatus['status'], conclusion: ActionsStatus['conclusion'],
-      ): Promise<ActionsStep[]> {
+      async function fetchStepsAndUpdate(runId: number): Promise<ActionsStep[]> {
         try {
           const jobsRes = await fetch(`/github-api/repos/${owner}/${repo}/actions/runs/${runId}/jobs`);
           if (!jobsRes.ok) return [];
@@ -173,7 +170,7 @@ export function DeploymentHistoryProvider({ children }: { children: React.ReactN
             const conclusion = run.conclusion as ActionsStatus['conclusion'];
 
             if (run.status === 'completed') {
-              const steps = await fetchStepsAndUpdate(runId, runUrl, status, conclusion);
+              const steps = await fetchStepsAndUpdate(runId);
               updateItemActionsStatus(batchId, itemId, { runId, runUrl, status, conclusion, steps });
               cleanup(); return;
             }

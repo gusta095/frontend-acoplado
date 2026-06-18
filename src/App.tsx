@@ -26,7 +26,7 @@ import { TemplatesConfigPage } from './components/configuracoes/templates/Templa
 import { CloudTemplatesConfigPage } from './components/configuracoes/templates/CloudTemplatesConfigPage';
 import { OnPremiseTemplatesConfigPage } from './components/configuracoes/templates/OnPremiseTemplatesConfigPage';
 import { IntegracoesPage } from './components/configuracoes/integracoes/IntegracoesPage';
-import { DevToolsPage } from './components/configuracoes/DevToolsPage'; // [DEVTOOLS] remover antes de produção
+import { DevToolsPage } from './components/configuracoes/DevToolsPage';
 
 function CloudRoutes() {
   const { cloudClient } = useTemplateSource();
@@ -87,7 +87,7 @@ export default function App() {
                         <Route path="/configuracoes/templates/cloud" element={<CloudTemplatesConfigPage />} />
                         <Route path="/configuracoes/templates/on-premise" element={<OnPremiseTemplatesConfigPage />} />
                         <Route path="/configuracoes/integracoes" element={<IntegracoesPage />} />
-                        <Route path="/configuracoes/devtools" element={<DevToolsPage />} />{/* [DEVTOOLS] remover antes de produção */}
+                        <Route path="/configuracoes/devtools" element={<DevToolsPage />} />
                       </Routes>
                     </AppLayout>
                   </BrowserRouter>

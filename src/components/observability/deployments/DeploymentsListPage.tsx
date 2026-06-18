@@ -49,14 +49,6 @@ function getBatchLiveStatus(batch: DeploymentBatch): BatchLiveStatus {
   return 'failed';
 }
 
-function getActiveStepLabel(actionsStatus?: ActionsStatus): string | null {
-  if (!actionsStatus || actionsStatus.status === 'completed') return null;
-  if (actionsStatus.status === 'queued') return 'Aguardando na fila';
-  if (!actionsStatus.steps?.length) return 'Executando...';
-  const running = actionsStatus.steps.find(s => s.status === 'running');
-  return running ? running.name : 'Processando';
-}
-
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: BatchLiveStatus }) {
@@ -94,72 +86,6 @@ function StatusBadge({ status }: { status: BatchLiveStatus }) {
     <Box display="flex" alignItems="center" gap={0.5}>
       <ErrorIcon sx={{ fontSize: 15, color: '#EF4444' }} />
       <Typography variant="caption" fontWeight={700} color="#C53030">Falhou</Typography>
-    </Box>
-  );
-}
-
-// ─── Item row inside batch card ───────────────────────────────────────────────
-
-function ItemRow({ result, snapshot }: {
-  result: DeploymentBatch['results'][0];
-  snapshot: DeploymentBatch['snapshot'][0];
-}) {
-  const liveStatus = getItemLiveStatus(result.response.status, result.actionsStatus, result.response.requestId);
-  const activeStep = liveStatus === 'in_flight' ? getActiveStepLabel(result.actionsStatus) : null;
-  const steps = result.actionsStatus?.steps ?? [];
-  const doneSteps = steps.filter(s => s.status === 'success').length;
-  const totalSteps = steps.length;
-
-  return (
-    <Box
-      display="flex" alignItems="center" gap={1.5}
-      sx={{ py: 0.75, px: 1.25, borderRadius: 1.5, bgcolor: '#F8FAFC', border: '1px solid #E2ECF6' }}
-    >
-      {/* Status icon */}
-      <Box flexShrink={0}>
-        {liveStatus === 'in_flight' && (
-          <Box sx={{
-            width: 8, height: 8, borderRadius: '50%', bgcolor: '#3B82F6',
-            animation: 'pulse-dot 1.2s ease-in-out infinite',
-          }} />
-        )}
-        {liveStatus === 'success' && <CheckCircleIcon sx={{ fontSize: 14, color: '#10B981' }} />}
-        {(liveStatus === 'failed' || liveStatus === 'repo_failed') && (
-          <ErrorIcon sx={{ fontSize: 14, color: '#EF4444' }} />
-        )}
-      </Box>
-
-      {/* Offer name + provider */}
-      <Box flex={1} minWidth={0}>
-        <Box display="flex" alignItems="center" gap={0.75}>
-          <Typography variant="caption" fontWeight={600} color="text.primary" noWrap>
-            {snapshot.offer.name}
-          </Typography>
-          <ProviderBadge provider={snapshot.offer.providerId} />
-        </Box>
-        {activeStep && (
-          <Typography variant="caption" color="#2563EB" fontSize="0.67rem" fontStyle="italic">
-            {activeStep}...
-          </Typography>
-        )}
-        {liveStatus === 'repo_failed' && (
-          <Typography variant="caption" color="#EF4444" fontSize="0.67rem">
-            Falha ao criar repositório
-          </Typography>
-        )}
-        {liveStatus === 'failed' && !activeStep && (
-          <Typography variant="caption" color="#EF4444" fontSize="0.67rem">
-            Pipeline falhou
-          </Typography>
-        )}
-      </Box>
-
-      {/* Step progress (when in_flight with steps) */}
-      {liveStatus === 'in_flight' && totalSteps > 0 && (
-        <Typography variant="caption" color="text.disabled" fontSize="0.65rem" flexShrink={0}>
-          {doneSteps}/{totalSteps} steps
-        </Typography>
-      )}
     </Box>
   );
 }

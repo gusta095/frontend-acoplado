@@ -88,12 +88,12 @@ export function OnPremiseSourceProvider({ children }: { children: React.ReactNod
 
   const onPremiseClient = useMemo((): MarketplaceApi => {
     if (source === 'local' && localPath.trim()) {
-      return new LocalServerMarketplaceClient(localPath.trim(), ON_PREMISE_PROVIDERS);
+      return new LocalServerMarketplaceClient(localPath.trim(), githubConfig, ON_PREMISE_PROVIDERS);
     }
     if (source === 'github' && githubConfig.owner && githubConfig.repo) {
       return new GitHubMarketplaceClient(githubConfig, ON_PREMISE_PROVIDERS);
     }
-    return new LocalServerMarketplaceClient('', ON_PREMISE_PROVIDERS);
+    return new LocalServerMarketplaceClient('', githubConfig, ON_PREMISE_PROVIDERS);
   }, [source, localPath, githubConfig]);
 
   return (

@@ -81,7 +81,7 @@ export function TemplateSourceProvider({ children }: { children: React.ReactNode
 
   const cloudClient = useMemo((): MarketplaceApi => {
     if (source === 'local' && localPath.trim()) {
-      return new LocalServerMarketplaceClient(localPath.trim());
+      return new LocalServerMarketplaceClient(localPath.trim(), githubConfig);
     }
     return new GitHubMarketplaceClient(githubConfig);
   }, [source, localPath, githubConfig]);

@@ -36,7 +36,7 @@ function getProvider(providerId: ProviderId) {
 function buildPayload(item: CartItem, definicaoProduto: Record<string, string>) {
   return {
     template: `${item.offer.providerId}/${item.offer.id}`,
-    payload: { ...item.parameters, ...definicaoProduto },
+    payload: { ...item.parameters, ...definicaoProduto, provider: item.offer.providerId },
   };
 }
 
