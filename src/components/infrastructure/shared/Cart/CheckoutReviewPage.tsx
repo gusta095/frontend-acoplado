@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Box, Button, Card, CardContent, Chip,
   Dialog, DialogContent, DialogTitle,
@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/CartContext';
 import { CLOUD_PROVIDERS } from '../../../../api/cloudProviders';
 import type { CartItem, ProviderId } from '../../../../types';
-import { BUSINESS_RULE_FIELDS, validateField, validateAllFields } from './businessRuleFields';
+import { BUSINESS_RULE_FIELDS, validateField, validateAllFields, computeRepoName } from './businessRuleFields';
 
 const fadeIn = `
   @keyframes fadeSlideUp {
@@ -178,6 +178,15 @@ interface DestinationSectionProps {
 }
 
 function DestinationSection({ values, touched, onChange, onTouch }: DestinationSectionProps) {
+  const repoName = useMemo(
+    () => computeRepoName(values.portfolio ?? '', values.product_name ?? ''),
+    [values.portfolio, values.product_name],
+  );
+
+  useEffect(() => {
+    onChange('repo_name', repoName);
+  }, [repoName]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Box
       sx={{
@@ -247,7 +256,25 @@ function DestinationSection({ values, touched, onChange, onTouch }: DestinationS
         })}
       </Grid>
 
-      <Typography variant="caption" color="#64748B" display="block" mt={2}>
+      <Box mt={2}>
+        <TextField
+          label="Nome do repositório"
+          value={repoName}
+          fullWidth
+          size="small"
+          InputProps={{ readOnly: true }}
+          helperText={repoName ? 'Gerado automaticamente com base no portfólio e produto.' : 'Preencha Portfólio e Nome do Produto para gerar.'}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              bgcolor: '#EFF6FF',
+              '& fieldset': { borderColor: '#BFDBFE', borderStyle: 'dashed' },
+            },
+            '& .MuiInputBase-input': { color: '#1E40AF', fontFamily: 'monospace', fontWeight: 600 },
+          }}
+        />
+      </Box>
+
+      <Typography variant="caption" color="#64748B" display="block" mt={1.5}>
         Essas informações serão injetadas em todos os recursos deste provisionamento.
       </Typography>
     </Box>

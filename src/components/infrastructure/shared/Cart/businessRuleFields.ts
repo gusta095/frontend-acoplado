@@ -1,3 +1,15 @@
+export const PORTFOLIO_SIGLA: Record<string, string> = {
+  Listados: 'lst',
+  Balcão: 'blc',
+  Tecnologia: 'ti',
+};
+
+export function computeRepoName(portfolio: string, productName: string): string {
+  const sigla = PORTFOLIO_SIGLA[portfolio] ?? '';
+  if (!sigla || !productName) return '';
+  return `${sigla}-${productName}-iac`;
+}
+
 export interface BusinessRuleField {
   key: string;
   label: string;

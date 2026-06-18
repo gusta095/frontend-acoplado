@@ -93,12 +93,42 @@ O portal é agnóstico à infraestrutura — ele não sabe o que o workflow faz,
 | Executar Terraform / Ansible / qualquer IaC | | ✅ |
 | Configurar secrets, permissões e infraestrutura | | ✅ |
 
+### Definição de produto e geração do `repo_name`
+
+Antes de confirmar o provisionamento, o usuário preenche o bloco **Definição de produto** na tela de revisão do pedido. Esses campos são injetados automaticamente no payload de todos os recursos do lote.
+
+| Campo | Descrição |
+|---|---|
+| `product_name` | Nome do produto — apenas letras minúsculas, 3–11 caracteres. |
+| `system` | Sistema ao qual o produto pertence. |
+| `portfolio` | Portfólio ao qual o produto pertence. |
+| `value_chain` | Cadeia de valor ao qual o produto pertence. |
+| `repo_name` | **Gerado automaticamente** — não é preenchido pelo usuário. |
+
+O `repo_name` é derivado automaticamente a partir do portfólio e do nome do produto, seguindo o padrão:
+
+```
+{sigla_portfolio}-{product_name}-iac
+```
+
+Tabela de siglas de portfólio:
+
+| Portfólio | Sigla |
+|---|---|
+| Listados | `lst` |
+| Balcão | `blc` |
+| Tecnologia | `ti` |
+
+**Exemplo:** portfólio `Listados` + produto `teste` → `repo_name: lst-teste-iac`
+
+O campo é exibido como somente leitura na interface e atualizado em tempo real conforme o usuário preenche os demais campos.
+
 ### Repositórios envolvidos
 
 | Repositório | Papel |
 |---|---|
 | **Repo de templates** | Configurado em Configurações → Templates. Contém os `template.yaml` com a definição das ofertas e os workflows de provisionamento. O portal lê os templates daqui e dispara os workflows aqui. |
-| **Repo de destino** | Criado pelo workflow com o nome informado no campo `repo_name` do formulário. O portal apenas acompanha o status via polling. |
+| **Repo de destino** | Criado pelo workflow com o `repo_name` gerado pelo portal. O portal apenas acompanha o status via polling. |
 
 ### Fluxo
 
