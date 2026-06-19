@@ -4,10 +4,10 @@ import { useOnPremiseSource } from '../../../context/OnPremiseSourceContext';
 import { TemplateSourceSection } from './TemplateSourceSection';
 
 export function OnPremiseTemplatesConfigPage() {
-  const { source, githubConfig, localPath, autoReload, setSource, setGitHubConfig, setLocalPath, setAutoReload } = useOnPremiseSource();
+  const { sources, autoReload, setSources, setAutoReload } = useOnPremiseSource();
 
   return (
-    <Box p={4} maxWidth={640}>
+    <Box p={4} maxWidth={860} mx="auto">
       <Box mb={4}>
         <Box display="flex" alignItems="center" gap={1} mb={0.5}>
           <StorageIcon sx={{ fontSize: 22, color: '#003087' }} />
@@ -17,18 +17,14 @@ export function OnPremiseTemplatesConfigPage() {
         </Box>
         <Typography variant="body2" color="text.secondary">
           Configure de onde o portal lê os templates de infraestrutura on-premise.
-          Use GitHub para produção e Pasta Local durante o desenvolvimento.
+          Adicione URLs de repositórios GitHub ou caminhos de pastas locais.
         </Typography>
       </Box>
 
       <TemplateSourceSection
-        source={source}
-        githubConfig={githubConfig}
-        localPath={localPath}
+        sources={sources}
         autoReload={autoReload}
-        setSource={setSource}
-        setGitHubConfig={setGitHubConfig}
-        setLocalPath={setLocalPath}
+        setSources={setSources}
         setAutoReload={setAutoReload}
         accentColor="#003087"
       />

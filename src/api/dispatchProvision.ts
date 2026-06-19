@@ -17,6 +17,10 @@ export async function dispatchProvision(
   if (!repoOwner) {
     try {
       const userRes = await fetch('/github-api/user', { headers: { Accept: 'application/vnd.github+json' } });
+      if (userRes.status === 403) {
+        const body = await userRes.json().catch(() => ({})) as { error?: string };
+        return { requestId: '', status: 'failed', message: body.error ?? 'Portal sem acesso ao GitHub', timestamp };
+      }
       if (!userRes.ok) throw new Error();
       const user = await userRes.json() as { login: string };
       repoOwner = user.login;
@@ -49,13 +53,11 @@ export async function dispatchProvision(
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as { message?: string };
-      return {
-        requestId: '',
-        status: 'failed',
-        message: `Erro ao disparar workflow: ${err.message ?? `HTTP ${res.status}`}`,
-        timestamp,
-      };
+      const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
+      const detail = res.status === 403
+        ? (body.error ?? 'Portal sem acesso ao GitHub')
+        : `Erro ao disparar workflow: ${body.message ?? `HTTP ${res.status}`}`;
+      return { requestId: '', status: 'failed', message: detail, timestamp };
     }
 
     const repoUrl = `https://github.com/${repoOwner}/${repoName}`;

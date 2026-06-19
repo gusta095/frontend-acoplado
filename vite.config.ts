@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
+import { execSync } from 'child_process'
 import type { Plugin } from 'vite'
 
 function localTemplatesPlugin(): Plugin {
@@ -60,6 +61,12 @@ function localTemplatesPlugin(): Plugin {
             }
             walk(resolved)
             res.end(JSON.stringify(results))
+          } else if (action === 'remote') {
+            const remote = execSync('git remote get-url origin', {
+              cwd: resolved,
+              stdio: ['pipe', 'pipe', 'pipe'],
+            }).toString().trim()
+            res.end(JSON.stringify({ remote }))
           } else {
             const content = fs.readFileSync(resolved, 'utf-8')
             res.end(JSON.stringify({ content }))
@@ -74,9 +81,27 @@ function localTemplatesPlugin(): Plugin {
 }
 
 function githubTokenPlugin(): Plugin {
+  // Estado em memória: começa habilitado se o token já está configurado no ambiente.
+  // O cliente sincroniza esse flag via /github-toggle ao ativar/desativar a integração.
+  let githubEnabled = !!process.env.GITHUB_TOKEN
+
   return {
     name: 'github-token',
     configureServer(server) {
+      // Guard: intercepta /github-api antes do proxy — bloqueia quando integração está inativa
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/github-api')) return next()
+        if (!githubEnabled) {
+          res.statusCode = 403
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.end(JSON.stringify({ error: 'Portal sem acesso ao GitHub — ative a integração nas Configurações' }))
+          return
+        }
+        next()
+      })
+
+      // Status do token + estado ativo/inativo
       server.middlewares.use((req, res, next) => {
         if (!req.url?.startsWith('/github-token-status')) return next()
         const token = process.env.GITHUB_TOKEN ?? ''
@@ -86,7 +111,23 @@ function githubTokenPlugin(): Plugin {
           : null
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Access-Control-Allow-Origin', '*')
-        res.end(JSON.stringify({ configured, preview, source: 'env' as const }))
+        res.end(JSON.stringify({ configured, preview, source: 'env' as const, enabled: githubEnabled }))
+      })
+
+      // Toggle: POST /github-toggle { enabled: boolean }
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/github-toggle') || req.method !== 'POST') return next()
+        let body = ''
+        req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+        req.on('end', () => {
+          try {
+            const { enabled } = JSON.parse(body) as { enabled: boolean }
+            githubEnabled = Boolean(enabled)
+          } catch { /* body inválido, mantém estado atual */ }
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.end(JSON.stringify({ enabled: githubEnabled }))
+        })
       })
     },
   }

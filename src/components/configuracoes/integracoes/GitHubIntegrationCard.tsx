@@ -19,6 +19,7 @@ interface TokenStatus {
   configured: boolean;
   preview: string | null;
   source: 'env';
+  enabled: boolean;
 }
 
 interface ConnectionResult {
@@ -32,6 +33,14 @@ async function fetchTokenStatus(): Promise<TokenStatus> {
   const res = await fetch('/github-token-status');
   if (!res.ok) throw new Error('middleware indisponível');
   return res.json() as Promise<TokenStatus>;
+}
+
+async function toggleGitHub(enabled: boolean): Promise<void> {
+  await fetch('/github-toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
 }
 
 async function testConnection(): Promise<ConnectionResult> {
@@ -70,18 +79,25 @@ export function GitHubIntegrationCard() {
   };
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) === 'true') {
-      load();
+    // Sincroniza o estado do servidor com a última preferência salva localmente
+    const wasActivated = localStorage.getItem(STORAGE_KEY) === 'true';
+    if (wasActivated) {
+      toggleGitHub(true).then(() => load());
+    } else {
+      // Garante que o servidor reflita a preferência de "inativo"
+      toggleGitHub(false);
     }
   }, []);
 
   const handleActivate = async () => {
     if (activated) {
       localStorage.removeItem(STORAGE_KEY);
+      await toggleGitHub(false);
       setTokenStatus(null);
       setConn({ status: 'idle' });
     } else {
       localStorage.setItem(STORAGE_KEY, 'true');
+      await toggleGitHub(true);
       await load();
     }
   };
@@ -97,7 +113,7 @@ export function GitHubIntegrationCard() {
     setConn(await testConnection());
   };
 
-  const activated = tokenStatus !== null;
+  const activated = tokenStatus?.enabled ?? false;
   const isConnected = conn.status === 'ok';
   const hasError = conn.status === 'error';
 
@@ -177,8 +193,8 @@ export function GitHubIntegrationCard() {
       {/* Body */}
       <Box px={3} py={2.5} display="flex" flexDirection="column" gap={2}>
 
-        {/* Token source — só exibe após ativar */}
-        {activated && (
+        {/* Token source — exibe após carregar o status do servidor */}
+        {tokenStatus !== null && (
           loadingStatus ? (
             <Box display="flex" alignItems="center" gap={1}>
               <CircularProgress size={14} />
