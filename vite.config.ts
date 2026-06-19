@@ -133,19 +133,12 @@ function githubTokenPlugin(): Plugin {
   }
 }
 
-// workaround para bug do rolldown (presente nas versões 1.0.x e 1.1.x): o chunk
-// compartilhado styles-*.js é gerado sem dois imports de MUI/Emotion. Intercepta
-// a requisição HTTP do browser e injeta os imports ausentes antes de servir.
-//
-// IMPORTANTE: ao servir o conteúdo diretamente, precisamos replicar o rewrite de
-// URLs que o Vite normalmente faz: "./foo.js" → "/node_modules/.vite/deps/foo.js?v=HASH".
-// Sem isso, o browser carrega instâncias diferentes do React (com/sem ?v=) e o
-// dispatcher fica null, causando "Cannot read properties of null (reading 'useDebugValue')".
-//
-// O ?v= correto NÃO é o browserHash global do _metadata.json — cada dep pode ter
-// seu próprio browserHash atualizado em memória após ciclos de re-otimização.
-// Lemos o hash diretamente do depsOptimizer ativo do servidor para garantir que
-// usamos exatamente o mesmo ?v= que o Vite está servindo no momento da requisição.
+// Workaround para bug do Rolldown 1.0.x/1.1.x: o chunk styles-*.js é gerado sem
+// dois imports de MUI/Emotion. Intercepta a requisição e injeta os imports ausentes.
+// Os imports relativos "./foo.js" são reescritos para absolutos com ?v=HASH para que
+// o browser use a mesma instância de React que o resto da app (URLs idênticas = mesmo módulo).
+// O hash é lido do _metadata.json — estável porque optimizeDeps.include lista todos os
+// deps, evitando re-otimização mid-session que mudaria o hash.
 function fixRolldownEmotionChunk(): Plugin {
   return {
     name: 'fix-rolldown-emotion-chunk',
@@ -159,59 +152,46 @@ function fixRolldownEmotionChunk(): Plugin {
         if (!fs.existsSync(filePath)) return next()
 
         let content = fs.readFileSync(filePath, 'utf-8')
-        let patched = false
+
+        const EMOTION_FN = 'init_emotion_react_browser_development_esm'
+        const SEP_FN = 'init_StyledEngineProvider'
+
+        const needsEmotionFix = content.includes(`${EMOTION_FN}()`) && !content.includes(`${EMOTION_FN} }`)
+        const needsSEPFix = content.includes(`${SEP_FN}()`) && !content.includes(`as ${SEP_FN}`)
+
+        if (!needsEmotionFix && !needsSEPFix) return next()
 
         const depBase = '/node_modules/.vite/deps/'
 
-        // Obtém o ?v= correto para cada dep consultando o depsOptimizer ao vivo.
-        // O Vite atribui browserHash individualmente a cada entrada (pode mudar entre
-        // ciclos de re-otimização por descoberta de deps), então não podemos usar o
-        // browserHash global do _metadata.json — ele pode já estar desatualizado.
-        const getVSuffix = (filename: string): string => {
+        const getHash = (): string => {
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const meta = (server as any).environments?.client?.depsOptimizer?.metadata
-            if (meta) {
-              const absFile = path.join(depsDir, filename)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const entry = meta.depInfoList?.find((d: any) => d.file === absFile)
-              const hash = entry?.browserHash ?? meta.browserHash
-              if (hash) return `?v=${hash}`
-            }
-          } catch { /* server ainda não inicializado */ }
-          // fallback: lê do disco
+            const h = (server as any).environments?.client?.depsOptimizer?.metadata?.browserHash
+            if (h) return h
+          } catch { /* ignore */ }
           try {
             const m = JSON.parse(fs.readFileSync(path.join(depsDir, '_metadata.json'), 'utf-8'))
-            if (m.browserHash) return `?v=${m.browserHash}`
-          } catch { /* sem metadata */ }
+            if (m.browserHash) return m.browserHash
+          } catch { /* ignore */ }
           return ''
         }
 
-        // fix 1: init_emotion_react_browser_development_esm chamada sem import
-        const EMOTION_FN = 'init_emotion_react_browser_development_esm'
-        if (content.includes(`${EMOTION_FN}()`) && !content.includes(`${EMOTION_FN} }`)) {
-          content = `import { t as ${EMOTION_FN} } from "${depBase}@emotion_react.js${getVSuffix('@emotion_react.js')}";\n` + content
-          patched = true
-        }
+        const hash = getHash()
+        const vSuffix = hash ? `?v=${hash}` : ''
 
-        // fix 2: init_StyledEngineProvider chamada sem definição
-        // existe em identifier-*.js exportada como "tt" — detecta nome do chunk pelo import existente
-        const SEP_FN = 'init_StyledEngineProvider'
-        if (content.includes(`${SEP_FN}()`) && !content.includes(`as ${SEP_FN}`)) {
-          const identifierFile = content.match(/from "\.\/(identifier-[^"]+\.js)"/)?.[1]
-          if (identifierFile) {
-            content = `import { tt as ${SEP_FN} } from "${depBase}${identifierFile}${getVSuffix(identifierFile)}";\n` + content
-            patched = true
+        if (needsEmotionFix) {
+          content = `import { t as ${EMOTION_FN} } from "${depBase}@emotion_react.js${vSuffix}";\n` + content
+        }
+        if (needsSEPFix) {
+          const dtFile = content.match(/from "\.\/(defaultTheme-[^"]+\.js)"/)?.[1]
+          if (dtFile) {
+            content = `import { _t as ${SEP_FN} } from "${depBase}${dtFile}${vSuffix}";\n` + content
           }
         }
 
-        if (!patched) return next()
-
-        // replica o rewrite de URLs que o Vite faz normalmente:
-        // "./foo.js" → "/node_modules/.vite/deps/foo.js?v=HASH"
         content = content.replace(
           /from "(\.\/([^"]+\.js))"/g,
-          (_match, _full, filename) => `from "${depBase}${filename}${getVSuffix(filename)}"`,
+          (_m, _f, filename) => `from "${depBase}${filename}${vSuffix}"`,
         )
 
         res.setHeader('Content-Type', 'application/javascript')
@@ -225,10 +205,25 @@ function fixRolldownEmotionChunk(): Plugin {
 export default defineConfig({
   plugins: [react(), localTemplatesPlugin(), githubTokenPlugin(), fixRolldownEmotionChunk()],
   optimizeDeps: {
+    // noDiscovery desabilita o scanner de deps transitivos, evitando re-otimização
+    // mid-session que muda o browserHash enquanto o browser já carregou módulos com o hash antigo.
+    noDiscovery: true,
+    holdUntilCrawlEnd: true,
     include: [
+      'react',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-dom',
+      'react-dom/client',
+      'react-router-dom',
       '@emotion/react',
-      '@emotion/styled',
       '@emotion/react/jsx-runtime',
+      '@emotion/styled',
+      '@mui/material',
+      '@mui/material/styles',
+      '@mui/material/CssBaseline',
+      '@mui/icons-material',
+      'js-yaml',
     ],
   },
   server: {

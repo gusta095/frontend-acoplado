@@ -72,7 +72,7 @@ export function GitHubIntegrationCard() {
     try {
       setTokenStatus(await fetchTokenStatus());
     } catch {
-      setTokenStatus({ configured: false, preview: null, source: 'env' });
+      setTokenStatus({ configured: false, preview: null, source: 'env', enabled: false });
     } finally {
       setLoadingStatus(false);
     }
